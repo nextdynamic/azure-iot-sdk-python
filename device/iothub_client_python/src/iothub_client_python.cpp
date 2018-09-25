@@ -2316,6 +2316,7 @@ public:
     void CreateFromEnvironment(IOTHUB_TRANSPORT_PROVIDER _protocol)
     {
         protocol = _protocol;
+		printf("USING INSTRUMENTED PYTHON BUILD CREATE FROM ENVIRONMENT\n");
 
         {
             ScopedGILRelease release;
