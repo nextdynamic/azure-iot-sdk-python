@@ -1499,6 +1499,7 @@ public:
         protocol(_protocol)
     {
         iotHubClientHandle = NULL;
+        printf("USING INSTRUMENTED PYTHON BUILD\n");
 
         {
             client_interface_type = _client_interface_type;
