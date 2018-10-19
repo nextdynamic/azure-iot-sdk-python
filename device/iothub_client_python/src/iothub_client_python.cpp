@@ -1006,7 +1006,7 @@ SendConfirmationCallback(
             PyErr_Print();
         }
     }
-    delete sendContext;
+    // delete sendContext;
     delete eventMessage;
 }
 
