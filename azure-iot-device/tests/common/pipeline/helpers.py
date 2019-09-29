@@ -6,6 +6,7 @@
 import inspect
 import pytest
 import functools
+import weakref
 from threading import Event
 from azure.iot.device.common.pipeline import (
     pipeline_events_base,
@@ -86,12 +87,12 @@ def make_mock_stage(mocker, stage_to_make):
 
     first_stage.next = next_stage
     # TODO: this is sloppy.  we should have a real root here for testing.
-    first_stage.pipeline_root = first_stage
+    first_stage.pipeline_root_weakref = weakref.ref(first_stage)
 
-    next_stage.previous = first_stage
-    next_stage.pipeline_root = first_stage
+    next_stage.previous_weakref = weakref.ref(first_stage)
+    next_stage.pipeline_root_weakref = weakref.ref(first_stage)
 
-    first_stage.pipeline_root.connected = False
+    first_stage.pipeline_root_weakref().connected = False
 
     return first_stage
 

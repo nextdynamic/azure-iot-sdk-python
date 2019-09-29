@@ -6,6 +6,7 @@
 import logging
 import pytest
 import sys
+import weakref
 import six.moves.urllib as urllib
 from azure.iot.device import constant
 from azure.iot.device.common.pipeline import (
@@ -353,7 +354,7 @@ class TestProvisioningMQTTConverterWithEnable(object):
 def add_pipeline_root(mock_stage, mocker):
     root = pipeline_stages_base.PipelineRootStage()
     mocker.spy(root, "handle_pipeline_event")
-    mock_stage.previous = root
+    mock_stage.previous_weakref = weakref.ref(root)
 
 
 @pytest.mark.describe("ProvisioningMQTTConverterStage _handle_pipeline_event")
@@ -366,8 +367,8 @@ class TestProvisioningMQTTConverterHandlePipelineEvent(object):
             topic=unmatched_mqtt_topic, payload=fake_mqtt_payload
         )
         mock_stage.handle_pipeline_event(event)
-        assert mock_stage.previous.handle_pipeline_event.call_count == 1
-        assert mock_stage.previous.handle_pipeline_event.call_args == mocker.call(event)
+        assert mock_stage.previous_weakref().handle_pipeline_event.call_count == 1
+        assert mock_stage.previous_weakref().handle_pipeline_event.call_args == mocker.call(event)
 
 
 @pytest.fixture
@@ -386,8 +387,8 @@ class TestProvisioningMQTTConverterHandlePipelineEventRegistrationResponse(objec
         self, mocker, mock_stage, stages_configured, add_pipeline_root, dps_response_event
     ):
         mock_stage.handle_pipeline_event(dps_response_event)
-        assert mock_stage.previous.handle_pipeline_event.call_count == 1
-        new_event = mock_stage.previous.handle_pipeline_event.call_args[0][0]
+        assert mock_stage.previous_weakref().handle_pipeline_event.call_count == 1
+        new_event = mock_stage.previous_weakref().handle_pipeline_event.call_args[0][0]
         assert isinstance(new_event, pipeline_events_provisioning.RegistrationResponseEvent)
 
     @pytest.mark.it("Extracts message properties from the mqtt topic for c2d messages")
@@ -395,7 +396,7 @@ class TestProvisioningMQTTConverterHandlePipelineEventRegistrationResponse(objec
         self, mocker, mock_stage, stages_configured, add_pipeline_root, dps_response_event
     ):
         mock_stage.handle_pipeline_event(dps_response_event)
-        new_event = mock_stage.previous.handle_pipeline_event.call_args[0][0]
+        new_event = mock_stage.previous_weakref().handle_pipeline_event.call_args[0][0]
         assert new_event.request_id == fake_request_id
         assert new_event.status_code == "200"
 
@@ -408,5 +409,5 @@ class TestProvisioningMQTTConverterHandlePipelineEventRegistrationResponse(objec
             topic=fake_some_other_topic, payload=fake_mqtt_payload
         )
         mock_stage.handle_pipeline_event(event)
-        assert mock_stage.previous.handle_pipeline_event.call_count == 1
-        assert mock_stage.previous.handle_pipeline_event.call_args == mocker.call(event)
+        assert mock_stage.previous_weakref().handle_pipeline_event.call_count == 1
+        assert mock_stage.previous_weakref().handle_pipeline_event.call_args == mocker.call(event)

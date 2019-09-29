@@ -4,6 +4,7 @@
 # license information.
 # --------------------------------------------------------------------------
 
+import azure.iot.device.common.mqtt_transport as mqtt_transport
 from azure.iot.device.common.mqtt_transport import MQTTTransport, OperationManager
 from azure.iot.device.common.models.x509 import X509
 from azure.iot.device.common import transport_exceptions as errors
@@ -259,6 +260,17 @@ class TestInstantiation(object):
         )
         assert transport._op_manager._pending_operation_callbacks == {}
         assert transport._op_manager._unknown_operation_completions == {}
+
+    @pytest.mark.it("Is able to be garbage collected")
+    def test_garbage_collection(self):
+        # Do not mock Paho for this test.
+        assert mqtt_transport.object_count == 0
+        transport = MQTTTransport(
+            client_id=fake_device_id, hostname=fake_hostname, username=fake_username
+        )
+        assert mqtt_transport.object_count == 1
+        transport = None  # noqa: F841 local variable 'transport' is assigned to but never used
+        assert mqtt_transport.object_count == 0
 
 
 @pytest.mark.describe("MQTTTransport - .connect()")

@@ -82,7 +82,7 @@ class IoTHubMQTTConverterStage(PipelineStage):
 
         elif (
             isinstance(op, pipeline_ops_base.UpdateSasTokenOperation)
-            and self.pipeline_root.connected
+            and self.pipeline_root_weakref().connected
         ):
             logger.debug(
                 "{}({}): Connected.  Passing op down and reconnecting after token is updated.".format(

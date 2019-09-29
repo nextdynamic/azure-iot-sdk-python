@@ -6,6 +6,7 @@
 
 import logging
 import six
+import weakref
 from . import (
     pipeline_ops_base,
     PipelineStage,
@@ -20,6 +21,8 @@ from azure.iot.device.common import handle_exceptions, transport_exceptions
 
 logger = logging.getLogger(__name__)
 
+object_count = 0
+
 
 class MQTTTransportStage(PipelineStage):
     """
@@ -27,6 +30,15 @@ class MQTTTransportStage(PipelineStage):
     This stage handles all MQTT operations and any other operations (such as ConnectOperation) which
     is not in the MQTT group of operations, but can only be run at the protocol level.
     """
+
+    def __init__(self):
+        global object_count
+        object_count += 1
+        super(MQTTTransportStage, self).__init__()
+
+    def __del__(self):
+        global object_count
+        object_count -= 1
 
     @pipeline_thread.runs_on_pipeline_thread
     def _cancel_pending_connection_op(self):
@@ -66,10 +78,41 @@ class MQTTTransportStage(PipelineStage):
                 ca_cert=self.ca_cert,
                 x509_cert=self.client_cert,
             )
-            self.transport.on_mqtt_connected_handler = self._on_mqtt_connected
-            self.transport.on_mqtt_connection_failure_handler = self._on_mqtt_connection_failure
-            self.transport.on_mqtt_disconnected_handler = self._on_mqtt_disconnected
-            self.transport.on_mqtt_message_received_handler = self._on_mqtt_message_received
+
+            self_weakref = weakref.ref(self)
+
+            def on_mqtt_connected():
+                this = self_weakref()
+                if not this:
+                    logger.error("callback into collected stage")
+                    return
+                this._on_mqtt_connected()
+
+            def on_mqtt_connection_failure(cause=None):
+                this = self_weakref()
+                if not this:
+                    logger.error("callback into collected stage")
+                    return
+                this._on_mqtt_connection_failure(cause)
+
+            def on_mqtt_disconnected(cause=None):
+                this = self_weakref()
+                if not this:
+                    logger.error("callback into collected stage")
+                    return
+                this._on_mqtt_disconnected(cause)
+
+            def on_mqtt_message_received(topic, payload):
+                this = self_weakref()
+                if not this:
+                    logger.error("callback into collected stage")
+                    return
+                this._on_mqtt_message_received(topic, payload)
+
+            self.transport.on_mqtt_connected_handler = on_mqtt_connected
+            self.transport.on_mqtt_connection_failure_handler = on_mqtt_connection_failure
+            self.transport.on_mqtt_disconnected_handler = on_mqtt_disconnected
+            self.transport.on_mqtt_message_received_handler = on_mqtt_message_received
 
             # There can only be one pending connection operation (Connect, Reconnect, Disconnect)
             # at a time. The existing one must be completed or canceled before a new one is set.
@@ -83,7 +126,7 @@ class MQTTTransportStage(PipelineStage):
             # complete a Disconnect operation.
             self._pending_connection_op = None
 
-            self.pipeline_root.transport = self.transport
+            self.pipeline_root_weakref().transport = self.transport
             operation_flow.complete_op(self, op)
 
         elif isinstance(op, pipeline_ops_base.UpdateSasTokenOperation):

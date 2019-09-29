@@ -7,6 +7,7 @@ import logging
 import pytest
 import sys
 import six
+import weakref
 from azure.iot.device.common import transport_exceptions, handle_exceptions
 from azure.iot.device.common.pipeline import (
     pipeline_ops_base,
@@ -85,9 +86,9 @@ def stage(mocker):
     stage = pipeline_stages_mqtt.MQTTTransportStage()
     root = pipeline_stages_base.PipelineRootStage()
 
-    stage.previous = root
+    stage.previous_weakref = weakref.ref(root)
     root.next = stage
-    stage.pipeline_root = root
+    stage.pipeline_root_weakref = weakref.ref(root)
 
     mocker.spy(root, "handle_pipeline_event")
     mocker.spy(root, "on_connected")
@@ -192,6 +193,13 @@ class TestMQTTProviderRunOpWithSetConnectionArgs(RunOpTests):
         stage.run_op(op_set_connection_args)
         assert transport.call_count == 1
 
+    @pytest.mark.it("Leaves the object in a state that allows garbage collection")
+    def test_can_be_collected(self, stage, transport, op_set_connection_args):
+        assert pipeline_stages_mqtt.object_count == 4
+        stage.run_op(op_set_connection_args)
+        # del stage
+        assert pipeline_stages_mqtt.object_count == 3
+
     @pytest.mark.it(
         "Initializes the MQTTTransport object with the passed client_id, hostname, username, ca_cert and x509_cert"
     )
@@ -208,16 +216,10 @@ class TestMQTTProviderRunOpWithSetConnectionArgs(RunOpTests):
     @pytest.mark.it("Sets handlers on the transport")
     def test_sets_parameters(self, stage, transport, mocker, op_set_connection_args):
         stage.run_op(op_set_connection_args)
-        assert transport.return_value.on_mqtt_disconnected_handler == stage._on_mqtt_disconnected
-        assert transport.return_value.on_mqtt_connected_handler == stage._on_mqtt_connected
-        assert (
-            transport.return_value.on_mqtt_connection_failure_handler
-            == stage._on_mqtt_connection_failure
-        )
-        assert (
-            transport.return_value.on_mqtt_message_received_handler
-            == stage._on_mqtt_message_received
-        )
+        assert transport.return_value.on_mqtt_disconnected_handler
+        assert transport.return_value.on_mqtt_connected_handler
+        assert transport.return_value.on_mqtt_connection_failure_handler
+        assert transport.return_value.on_mqtt_message_received_handler
 
     @pytest.mark.it("Sets the pending connection op tracker to None")
     def test_pending_conn_op(self, stage, transport, op_set_connection_args):
@@ -458,14 +460,14 @@ class TestMQTTProviderProtocolClientEvents(object):
     @pytest.mark.it("Fires an IncomingMQTTMessageEvent event for each MQTT message received")
     def test_incoming_message_handler(self, stage, create_transport, mocker):
         stage.transport.on_mqtt_message_received_handler(topic=fake_topic, payload=fake_payload)
-        assert stage.previous.handle_pipeline_event.call_count == 1
-        call_arg = stage.previous.handle_pipeline_event.call_args[0][0]
+        assert stage.previous_weakref().handle_pipeline_event.call_count == 1
+        call_arg = stage.previous_weakref().handle_pipeline_event.call_args[0][0]
         assert isinstance(call_arg, pipeline_events_mqtt.IncomingMQTTMessageEvent)
 
     @pytest.mark.it("Passes topic and payload as part of the IncomingMQTTMessageEvent event")
     def test_verify_incoming_message_attributes(self, stage, create_transport, mocker):
         stage.transport.on_mqtt_message_received_handler(topic=fake_topic, payload=fake_payload)
-        call_arg = stage.previous.handle_pipeline_event.call_args[0][0]
+        call_arg = stage.previous_weakref().handle_pipeline_event.call_args[0][0]
         assert call_arg.payload == fake_payload
         assert call_arg.topic == fake_topic
 
@@ -484,9 +486,9 @@ class TestMQTTProviderOnConnected(object):
     )
     def test_connected_handler(self, stage, create_transport, pending_connection_op):
         stage._pending_connection_op = pending_connection_op
-        assert stage.previous.on_connected.call_count == 0
+        assert stage.previous_weakref().on_connected.call_count == 0
         stage.transport.on_mqtt_connected_handler()
-        assert stage.previous.on_connected.call_count == 1
+        assert stage.previous_weakref().on_connected.call_count == 1
 
     @pytest.mark.it(
         "Completes a pending ConnectOperation with success when the transport connected event fires"
@@ -545,9 +547,9 @@ class TestMQTTProviderOnConnectionFailure(object):
     ):
         # This test is testing negative space - something the function does NOT do - rather than something it does
         stage._pending_connection_op = pending_connection_op
-        assert stage.previous.on_connected.call_count == 0
+        assert stage.previous_weakref().on_connected.call_count == 0
         stage.transport.on_mqtt_connection_failure_handler(fake_exception)
-        assert stage.previous.on_connected.call_count == 0
+        assert stage.previous_weakref().on_connected.call_count == 0
 
     @pytest.mark.it("Fails a pending ConnectOperation if the connection failure event fires")
     def test_fails_pending_connect_op(self, mocker, stage, create_transport, fake_exception):
@@ -620,9 +622,9 @@ class TestMQTTProviderOnDisconnected(object):
     )
     def test_disconnected_handler(self, stage, create_transport, pending_connection_op, cause):
         stage._pending_connection_op = pending_connection_op
-        assert stage.previous.on_disconnected.call_count == 0
+        assert stage.previous_weakref().on_disconnected.call_count == 0
         stage.transport.on_mqtt_disconnected_handler(cause)
-        assert stage.previous.on_disconnected.call_count == 1
+        assert stage.previous_weakref().on_disconnected.call_count == 1
 
     @pytest.mark.it(
         "Completes a pending DisconnectOperation with success when the transport disconnected event fires without an error cause"
