@@ -193,12 +193,6 @@ class TestMQTTProviderRunOpWithSetConnectionArgs(RunOpTests):
         stage.run_op(op_set_connection_args)
         assert transport.call_count == 1
 
-    @pytest.mark.it("Leaves the object in a state that allows garbage collection")
-    def test_can_be_collected(self, stage, transport, op_set_connection_args):
-        assert pipeline_stages_mqtt.object_count == 4
-        stage.run_op(op_set_connection_args)
-        # del stage
-        assert pipeline_stages_mqtt.object_count == 3
 
     @pytest.mark.it(
         "Initializes the MQTTTransport object with the passed client_id, hostname, username, ca_cert and x509_cert"
