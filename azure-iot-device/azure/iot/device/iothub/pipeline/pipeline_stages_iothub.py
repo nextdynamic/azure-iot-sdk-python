@@ -6,6 +6,7 @@
 
 import json
 import logging
+import weakref
 from azure.iot.device.common.pipeline import (
     pipeline_ops_base,
     PipelineStage,
@@ -17,6 +18,15 @@ from . import pipeline_ops_iothub
 from . import constant
 
 logger = logging.getLogger(__name__)
+
+
+def make_a_weak_callback_callable(weakref_method):
+    def invoke(*args, **kwargs):
+        if not weakref_method():
+            raise ReferenceError("weakly-referenced object no longer exists")
+        weakref_method()(*args, **kwargs)
+
+    return invoke
 
 
 class UseAuthProviderStage(PipelineStage):
@@ -35,7 +45,9 @@ class UseAuthProviderStage(PipelineStage):
     def _execute_op(self, op):
         if isinstance(op, pipeline_ops_iothub.SetAuthProviderOperation):
             self.auth_provider = op.auth_provider
-            self.auth_provider.on_sas_token_updated_handler = self.on_sas_token_updated
+            self.auth_provider.on_sas_token_updated_handler = make_a_weak_callback_callable(
+                weakref.WeakMethod(self.on_sas_token_updated)
+            )
             operation_flow.delegate_to_different_op(
                 stage=self,
                 original_op=op,
