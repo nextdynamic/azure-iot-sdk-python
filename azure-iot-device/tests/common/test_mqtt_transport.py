@@ -4,7 +4,7 @@
 # license information.
 # --------------------------------------------------------------------------
 
-import azure.iot.device.common.mqtt_transport as mqtt_transport
+from azure.iot.device.common import mqtt_transport
 from azure.iot.device.common.mqtt_transport import MQTTTransport, OperationManager
 from azure.iot.device.common.models.x509 import X509
 from azure.iot.device.common import transport_exceptions as errors
@@ -14,6 +14,7 @@ import ssl
 import copy
 import pytest
 import logging
+import weakref
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -266,12 +267,12 @@ class TestInstantiation(object):
     @pytest.mark.it("Is able to be garbage collected")
     def test_garbage_collection(self):
         # Do not mock Paho for this test.
-        gc.collect()
-        assert mqtt_transport.MQTTTransport._object_count == 0
+        gc.collect(2)
+        #assert mqtt_transport.MQTTTransport._object_count == 0
         transport = MQTTTransport(
             client_id=fake_device_id, hostname=fake_hostname, username=fake_username
         )
-        assert mqtt_transport.MQTTTransport._object_count == 1
+        transport_weakref = weakref.ref(transport)
         del transport
         gc.collect()
         assert mqtt_transport.MQTTTransport._object_count == 0
