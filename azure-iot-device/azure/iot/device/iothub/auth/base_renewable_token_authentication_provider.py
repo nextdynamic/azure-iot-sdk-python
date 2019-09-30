@@ -10,6 +10,7 @@ import abc
 import logging
 import math
 import six
+import weakref
 from threading import Timer
 import six.moves.urllib as urllib
 from .authentication_provider import AuthenticationProvider
@@ -160,9 +161,12 @@ class BaseRenewableTokenAuthenticationProvider(AuthenticationProvider):
             seconds_until_update,
         )
 
+   
+        self_weakref = weakref.ref(self)
         def timerfunc():
-            logger.debug("Timed SAS update for (%s,%s)", self.device_id, self.module_id)
-            self.generate_new_sas_token()
+            this = self_weakref()
+            logger.debug("Timed SAS update for (%s,%s)", this.device_id, this.module_id)
+            this.generate_new_sas_token()
 
         self._token_update_timer = Timer(seconds_until_update, timerfunc)
         self._token_update_timer.daemon = True

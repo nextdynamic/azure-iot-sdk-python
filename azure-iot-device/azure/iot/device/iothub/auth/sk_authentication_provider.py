@@ -34,6 +34,8 @@ _valid_keys = [
     GATEWAY_HOST_NAME,
 ]
 
+object_count = 0
+
 
 class SymmetricKeyAuthenticationProvider(BaseRenewableTokenAuthenticationProvider):
     """
@@ -58,6 +60,9 @@ class SymmetricKeyAuthenticationProvider(BaseRenewableTokenAuthenticationProvide
             "Using Shared Key authentication for {%s, %s, %s}", hostname, device_id, module_id
         )
 
+        global object_count
+        object_count += 1
+
         super(SymmetricKeyAuthenticationProvider, self).__init__(
             hostname=hostname, device_id=device_id, module_id=module_id
         )
@@ -65,6 +70,10 @@ class SymmetricKeyAuthenticationProvider(BaseRenewableTokenAuthenticationProvide
         self.shared_access_key_name = shared_access_key_name
         self.gateway_hostname = gateway_hostname
         self.ca_cert = None
+
+    def __del__(self):
+        global object_count
+        object_count -= 1
 
     @staticmethod
     def parse(connection_string):
