@@ -24,15 +24,6 @@ logger = logging.getLogger(__name__)
 object_count = 0
 
 
-def make_a_weak_callback_callable(weakref_method):
-    def invoke(*args, **kwargs):
-        if not weakref_method():
-            raise ReferenceError("weakly-referenced object no longer exists")
-        weakref_method()(*args, **kwargs)
-
-    return invoke
-
-
 class MQTTTransportStage(PipelineStage):
     """
     PipelineStage object which is responsible for interfacing with the MQTT protocol wrapper object.
@@ -88,18 +79,10 @@ class MQTTTransportStage(PipelineStage):
                 x509_cert=self.client_cert,
             )
 
-            self.transport.on_mqtt_connected_handler = make_a_weak_callback_callable(
-                weakref.WeakMethod(self._on_mqtt_connected)
-            )
-            self.transport.on_mqtt_connection_failure_handler = make_a_weak_callback_callable(
-                weakref.WeakMethod(self._on_mqtt_connection_failure)
-            )
-            self.transport.on_mqtt_disconnected_handler = make_a_weak_callback_callable(
-                weakref.WeakMethod(self._on_mqtt_disconnected)
-            )
-            self.transport.on_mqtt_message_received_handler = make_a_weak_callback_callable(
-                weakref.WeakMethod(self._on_mqtt_message_received)
-            )
+            self.transport.on_mqtt_connected_handler = self._on_mqtt_connected
+            self.transport.on_mqtt_connection_failure_handler = self._on_mqtt_connection_failure
+            self.transport.on_mqtt_disconnected_handler = self._on_mqtt_disconnected
+            self.transport.on_mqtt_message_received_handler = self._on_mqtt_message_received
 
             # There can only be one pending connection operation (Connect, Reconnect, Disconnect)
             # at a time. The existing one must be completed or canceled before a new one is set.
