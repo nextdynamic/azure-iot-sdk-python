@@ -9,12 +9,10 @@ import logging
 import ssl
 import threading
 import traceback
-import weakref
 from . import transport_exceptions as exceptions
 
 logger = logging.getLogger(__name__)
 object_count = 0
-latest = None
 
 # Mapping of Paho CONNACK rc codes to Error object classes
 # Used for connection callbacks
@@ -114,8 +112,6 @@ class MQTTTransport(object):
         self._op_manager = OperationManager()
 
         self._mqtt_client = self._create_mqtt_client()
-        global latest
-        latest = weakref.ref(self)
 
     def __del__(self):
         global object_count
