@@ -35,17 +35,17 @@ class UseAuthProviderStage(PipelineStage):
     def _execute_op(self, op):
         if isinstance(op, pipeline_ops_iothub.SetAuthProviderOperation):
             self.auth_provider = op.auth_provider
-            op.auth_provider.on_sas_token_updated_handler = self.on_sas_token_updated
+            self.auth_provider.on_sas_token_updated_handler = self.on_sas_token_updated
             operation_flow.delegate_to_different_op(
                 stage=self,
                 original_op=op,
                 new_op=pipeline_ops_iothub.SetIoTHubConnectionArgsOperation(
-                    device_id=op.auth_provider.device_id,
-                    module_id=getattr(op.auth_provider, "module_id", None),
-                    hostname=op.auth_provider.hostname,
-                    gateway_hostname=getattr(op.auth_provider, "gateway_hostname", None),
-                    ca_cert=getattr(op.auth_provider, "ca_cert", None),
-                    sas_token=op.auth_provider.get_current_sas_token(),
+                    device_id=self.auth_provider.device_id,
+                    module_id=getattr(self.auth_provider, "module_id", None),
+                    hostname=self.auth_provider.hostname,
+                    gateway_hostname=getattr(self.auth_provider, "gateway_hostname", None),
+                    ca_cert=getattr(self.auth_provider, "ca_cert", None),
+                    sas_token=self.auth_provider.get_current_sas_token(),
                 ),
             )
         elif isinstance(op, pipeline_ops_iothub.SetX509AuthProviderOperation):

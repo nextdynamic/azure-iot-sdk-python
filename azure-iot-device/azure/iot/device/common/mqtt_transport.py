@@ -9,7 +9,6 @@ import logging
 import ssl
 import threading
 import traceback
-import weakref
 from . import transport_exceptions as exceptions
 
 logger = logging.getLogger(__name__)
