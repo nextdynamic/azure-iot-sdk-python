@@ -20,15 +20,6 @@ from . import constant
 logger = logging.getLogger(__name__)
 
 
-def make_a_weak_callback_callable(weakref_method):
-    def invoke(*args, **kwargs):
-        if not weakref_method():
-            raise ReferenceError("weakly-referenced object no longer exists")
-        weakref_method()(*args, **kwargs)
-
-    return invoke
-
-
 class UseAuthProviderStage(PipelineStage):
     def __init__(self):
         super(UseAuthProviderStage, self).__init__()
@@ -44,10 +35,44 @@ class UseAuthProviderStage(PipelineStage):
     @pipeline_thread.runs_on_pipeline_thread
     def _execute_op(self, op):
         if isinstance(op, pipeline_ops_iothub.SetAuthProviderOperation):
+
+            self_weakref = weakref.ref(self)
+
+            @pipeline_thread.invoke_on_pipeline_thread_nowait
+            def on_sas_token_updated():
+                this = self_weakref()
+
+                logger.info(
+                    "{}: New sas token received.  Passing down UpdateSasTokenOperation.".format(
+                        this.name
+                    )
+                )
+
+                @pipeline_thread.runs_on_pipeline_thread
+                def on_token_update_complete(op):
+                    if op.error:
+                        logger.error(
+                            "{}({}): token update operation failed.  Error={}".format(
+                                this.name, op.name, op.error
+                            )
+                        )
+                        handle_exceptions.handle_background_exception(op.error)
+                    else:
+                        logger.debug(
+                            "{}({}): token update operation is complete".format(this.name, op.name)
+                        )
+
+                operation_flow.pass_op_to_next_stage(
+                    stage=this,
+                    op=pipeline_ops_base.UpdateSasTokenOperation(
+                        sas_token=this.auth_provider.get_current_sas_token(),
+                        callback=on_token_update_complete,
+                    ),
+                )
+
             self.auth_provider = op.auth_provider
-            self.auth_provider.on_sas_token_updated_handler = make_a_weak_callback_callable(
-                weakref.WeakMethod(self.on_sas_token_updated)
-            )
+            self.auth_provider.on_sas_token_updated_handler = on_sas_token_updated
+
             operation_flow.delegate_to_different_op(
                 stage=self,
                 original_op=op,
@@ -76,34 +101,6 @@ class UseAuthProviderStage(PipelineStage):
             )
         else:
             operation_flow.pass_op_to_next_stage(self, op)
-
-    @pipeline_thread.invoke_on_pipeline_thread_nowait
-    def on_sas_token_updated(self):
-        logger.info(
-            "{}: New sas token received.  Passing down UpdateSasTokenOperation.".format(self.name)
-        )
-
-        @pipeline_thread.runs_on_pipeline_thread
-        def on_token_update_complete(op):
-            if op.error:
-                logger.error(
-                    "{}({}): token update operation failed.  Error={}".format(
-                        self.name, op.name, op.error
-                    )
-                )
-                handle_exceptions.handle_background_exception(op.error)
-            else:
-                logger.debug(
-                    "{}({}): token update operation is complete".format(self.name, op.name)
-                )
-
-        operation_flow.pass_op_to_next_stage(
-            stage=self,
-            op=pipeline_ops_base.UpdateSasTokenOperation(
-                sas_token=self.auth_provider.get_current_sas_token(),
-                callback=on_token_update_complete,
-            ),
-        )
 
 
 class HandleTwinOperationsStage(PipelineStage):
