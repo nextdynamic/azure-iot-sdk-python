@@ -8,6 +8,7 @@ import azure.iot.device.common.mqtt_transport as mqtt_transport
 from azure.iot.device.common.mqtt_transport import MQTTTransport, OperationManager
 from azure.iot.device.common.models.x509 import X509
 from azure.iot.device.common import transport_exceptions as errors
+import gc
 import paho.mqtt.client as mqtt
 import ssl
 import copy
@@ -265,13 +266,15 @@ class TestInstantiation(object):
     @pytest.mark.it("Is able to be garbage collected")
     def test_garbage_collection(self):
         # Do not mock Paho for this test.
-        assert mqtt_transport.object_count == 0
+        gc.collect()
+        assert mqtt_transport.MQTTTransport._object_count == 0
         transport = MQTTTransport(
             client_id=fake_device_id, hostname=fake_hostname, username=fake_username
         )
-        assert mqtt_transport.object_count == 1
-        transport = None  # noqa: F841 local variable 'transport' is assigned to but never used
-        assert mqtt_transport.object_count == 0
+        assert mqtt_transport.MQTTTransport._object_count == 1
+        del transport
+        gc.collect()
+        assert mqtt_transport.MQTTTransport._object_count == 0
 
 
 @pytest.mark.describe("MQTTTransport - .connect()")
@@ -305,6 +308,25 @@ class TestConnect(object):
         ],
     )
     def test_calls_paho_connect(self, mocker, mock_mqtt_client, transport, password):
+
+        mqtt_transport.DEFAULT_KEEPALIVE = fake_keepalive
+
+        transport.connect(password)
+
+        assert mock_mqtt_client.connect.call_count == 1
+        assert mock_mqtt_client.connect.call_args == mocker.call(
+            host=fake_hostname, port=8883, keepalive=mocker.ANY
+        )
+
+    @pytest.mark.it("passes DEFAULT_KEEPALIVE to paho connect function")
+    @pytest.mark.parametrize(
+        "password",
+        [
+            pytest.param(fake_password, id="Password provided"),
+            pytest.param(None, id="No password provided"),
+        ],
+    )
+    def test_calls_paho_connect_with_keepalive(self, mocker, mock_mqtt_client, transport, password):
 
         mqtt_transport.DEFAULT_KEEPALIVE = fake_keepalive
 

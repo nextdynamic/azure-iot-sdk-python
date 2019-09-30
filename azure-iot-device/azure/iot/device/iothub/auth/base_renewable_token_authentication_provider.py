@@ -40,6 +40,14 @@ class BaseRenewableTokenAuthenticationProvider(AuthenticationProvider):
     token renewal operation.
     """
 
+    # Horton tests use this value to validate that these objects
+    # get garbage collected correctly.  This has been problematic
+    # in the past because any objects that are strongly referenced by
+    # the _token_update_timer function will not get collected and that
+    # can lead to serious problems if this referenced object is, say,
+    # part of a transport pipeline that should otherwise be torn down.
+    _object_count = 0
+
     def __init__(self, hostname, device_id, module_id=None):
         """Initializer for Renewable Token Authentication Provider.
 
@@ -53,6 +61,8 @@ class BaseRenewableTokenAuthenticationProvider(AuthenticationProvider):
         :param str module_id: The module ID (optional)
         """
 
+        BaseRenewableTokenAuthenticationProvider._object_count += 1
+
         super(BaseRenewableTokenAuthenticationProvider, self).__init__(
             hostname=hostname, device_id=device_id, module_id=module_id
         )
@@ -63,9 +73,9 @@ class BaseRenewableTokenAuthenticationProvider(AuthenticationProvider):
         self.sas_token_str = None
         self.on_sas_token_updated_handler = None
 
-    def disconnect(self):
-        """Cancel updates to the SAS Token"""
+    def __del__(self):
         self._cancel_token_update_timer()
+        BaseRenewableTokenAuthenticationProvider._object_count -= 1
 
     def generate_new_sas_token(self):
         """Force the SAS token to update itself.
@@ -161,8 +171,8 @@ class BaseRenewableTokenAuthenticationProvider(AuthenticationProvider):
             seconds_until_update,
         )
 
-   
         self_weakref = weakref.ref(self)
+
         def timerfunc():
             this = self_weakref()
             logger.debug("Timed SAS update for (%s,%s)", this.device_id, this.module_id)

@@ -9,10 +9,10 @@ import logging
 import ssl
 import threading
 import traceback
+import weakref
 from . import transport_exceptions as exceptions
 
 logger = logging.getLogger(__name__)
-object_count = 0
 
 # Mapping of Paho CONNACK rc codes to Error object classes
 # Used for connection callbacks
@@ -85,6 +85,12 @@ class MQTTTransport(object):
     :type on_mqtt_connection_failure_handler: Function
     """
 
+    # Horton uses this variable to make sure we're cleaning up correctly.
+    # This object in particuar is checked because it holds a reference to Paho
+    # and Paho holds references to network resources and we want to be extra sure
+    # that we clean those up correctly.
+    _object_count = 0
+
     def __init__(self, client_id, hostname, username, ca_cert=None, x509_cert=None):
         """
         Constructor to instantiate an MQTT protocol wrapper.
@@ -94,8 +100,7 @@ class MQTTTransport(object):
         :param str ca_cert: Certificate which can be used to validate a server-side TLS connection (optional).
         :param x509_cert: Certificate which can be used to authenticate connection to a server in lieu of a password (optional).
         """
-        global object_count
-        object_count += 1
+        MQTTTransport._object_count += 1
 
         self._client_id = client_id
         self._hostname = hostname
@@ -114,8 +119,7 @@ class MQTTTransport(object):
         self._mqtt_client = self._create_mqtt_client()
 
     def __del__(self):
-        global object_count
-        object_count -= 1
+        MQTTTransport._object_count -= 1
 
     def _create_mqtt_client(self):
         """
