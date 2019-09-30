@@ -7,7 +7,6 @@ import logging
 import pytest
 import inspect
 import threading
-import weakref
 import concurrent.futures
 from tests.common.pipeline.helpers import (
     all_except,
@@ -44,12 +43,7 @@ def add_base_pipeline_stage_tests(
     add_instantiation_test(
         cls=cls,
         module=module,
-        defaults={
-            "name": cls.__name__,
-            "next": None,
-            "previous_weakref": None,
-            "pipeline_root_weakref": None,
-        },
+        defaults={"name": cls.__name__, "next": None, "previous": None, "pipeline_root": None},
         extra_defaults=extra_initializer_defaults,
     )
     add_unknown_ops_tests(cls=cls, module=module, all_ops=all_ops, handled_ops=handled_ops)
@@ -147,7 +141,7 @@ def add_unknown_events_tests(cls, module, all_events, handled_events):
             return make_mock_stage(mocker=mocker, stage_to_make=cls)
 
         @pytest.fixture
-        def previous_stage(self, stage, mocker):
+        def previous(self, stage, mocker):
             class PreviousStage(PipelineStage):
                 def __init__(self):
                     super(PreviousStage, self).__init__()
@@ -156,15 +150,15 @@ def add_unknown_events_tests(cls, module, all_events, handled_events):
                 def _execute_op(self, op):
                     pass
 
-            previous_stage = PreviousStage()
-            stage.previous_weakref = weakref.ref(previous_stage)
-            return previous_stage
+            previous = PreviousStage()
+            stage.previous = previous
+            return previous
 
         @pytest.mark.it("Passes unknown event to previous stage")
-        def test_passes_event_to_previous_stage(self, event_cls, stage, event, previous_stage):
+        def test_passes_event_to_previous_stage(self, event_cls, stage, event, previous):
             stage.handle_pipeline_event(event)
-            assert previous_stage.handle_pipeline_event.call_count == 1
-            assert previous_stage.handle_pipeline_event.call_args[0][0] == event
+            assert previous.handle_pipeline_event.call_count == 1
+            assert previous.handle_pipeline_event.call_args[0][0] == event
 
         @pytest.mark.it("Calls unhandled exception handler if there is no previous stage")
         def test_passes_event_with_no_previous_stage(
@@ -175,10 +169,10 @@ def add_unknown_events_tests(cls, module, all_events, handled_events):
 
         @pytest.mark.it("Catches Exceptions raised when passing unknown event to previous stage")
         def test_passes_event_to_previous_stage_which_throws_exception(
-            self, event_cls, stage, event, previous_stage, unhandled_error_handler
+            self, event_cls, stage, event, previous, unhandled_error_handler
         ):
             e = Exception()
-            previous_stage.handle_pipeline_event.side_effect = e
+            previous.handle_pipeline_event.side_effect = e
             stage.handle_pipeline_event(event)
             assert unhandled_error_handler.call_count == 1
             assert unhandled_error_handler.call_args[0][0] == e
@@ -187,10 +181,10 @@ def add_unknown_events_tests(cls, module, all_events, handled_events):
             "Allows BaseExceptions raised when passing unknown operation to next start to propogate"
         )
         def test_passes_event_to_previous_stage_which_throws_base_exception(
-            self, event_cls, stage, event, previous_stage, unhandled_error_handler
+            self, event_cls, stage, event, previous, unhandled_error_handler
         ):
             e = UnhandledException()
-            previous_stage.handle_pipeline_event.side_effect = e
+            previous.handle_pipeline_event.side_effect = e
             with pytest.raises(UnhandledException):
                 stage.handle_pipeline_event(event)
             assert unhandled_error_handler.call_count == 0

@@ -124,13 +124,11 @@ def pass_event_to_previous_stage(stage, event):
     behavior of events while traveling through the pipeline. They start somewhere (maybe the
     bottom) and move up the pipeline until they're handled or until they error out.
     """
-    if stage.previous_weakref and stage.previous_weakref():
+    if stage.previous:
         logger.debug(
-            "{}({}): pushing event up to {}".format(
-                stage.name, event.name, stage.previous_weakref().name
-            )
+            "{}({}): pushing event up to {}".format(stage.name, event.name, stage.previous.name)
         )
-        stage.previous_weakref().handle_pipeline_event(event)
+        stage.previous.handle_pipeline_event(event)
     else:
         logger.error("{}({}): Error: unhandled event".format(stage.name, event.name))
         error = NotImplementedError(

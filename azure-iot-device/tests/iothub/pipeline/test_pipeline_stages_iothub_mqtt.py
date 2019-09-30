@@ -8,7 +8,6 @@ import logging
 import pytest
 import json
 import sys
-import weakref
 import six.moves.urllib as urllib
 from azure.iot.device.common.pipeline import (
     pipeline_events_base,
@@ -410,7 +409,7 @@ class TestIoTHubMQTTConverterWithUpdateSasTokenOperationDisconnected(object):
 
     @pytest.fixture(autouse=True)
     def transport_is_disconnected(self, stage):
-        stage.pipeline_root_weakref().connected = False
+        stage.pipeline_root.connected = False
 
     @pytest.mark.it("Immediately passes the operation to the next stage")
     def test_passes_op_immediately(self, stage, op):
@@ -444,7 +443,7 @@ class TestIoTHubMQTTConverterWithUpdateSasTokenOperationConnected(object):
 
     @pytest.fixture(autouse=True)
     def transport_is_connected(self, stage):
-        stage.pipeline_root_weakref().connected = True
+        stage.pipeline_root.connected = True
 
     @pytest.mark.it("Immediately passes the operation to the next stage")
     def test_passes_op_immediately(self, stage, op):
@@ -1033,8 +1032,8 @@ class TestIoTHubMQTTConverterWithEnableFeature(object):
 def add_pipeline_root(stage, mocker):
     root = pipeline_stages_base.PipelineRootStage()
     mocker.spy(root, "handle_pipeline_event")
-    stage.previous_weakref = weakref.ref(root)
-    stage.pipeline_root_weakref = weakref.ref(root)
+    stage.previous = root
+    stage.pipeline_root = root
 
 
 @pytest.mark.describe(
@@ -1049,8 +1048,8 @@ class TestIoTHubMQTTConverterHandlePipelineEvent(object):
             topic=unmatched_mqtt_topic, payload=fake_mqtt_payload
         )
         stage.handle_pipeline_event(event)
-        assert stage.previous_weakref().handle_pipeline_event.call_count == 1
-        assert stage.previous_weakref().handle_pipeline_event.call_args == mocker.call(event)
+        assert stage.previous.handle_pipeline_event.call_count == 1
+        assert stage.previous.handle_pipeline_event.call_args == mocker.call(event)
 
 
 @pytest.fixture
@@ -1071,8 +1070,8 @@ class TestIoTHubMQTTConverterHandlePipelineEventC2D(object):
         self, mocker, stage, stage_configured_for_device, add_pipeline_root, c2d_event
     ):
         stage.handle_pipeline_event(c2d_event)
-        assert stage.previous_weakref().handle_pipeline_event.call_count == 1
-        new_event = stage.previous_weakref().handle_pipeline_event.call_args[0][0]
+        assert stage.previous.handle_pipeline_event.call_count == 1
+        new_event = stage.previous.handle_pipeline_event.call_args[0][0]
         assert isinstance(new_event, pipeline_events_iothub.C2DMessageEvent)
 
     @pytest.mark.it("Convers the mqtt payload of a c2d message into a Message object")
@@ -1080,7 +1079,7 @@ class TestIoTHubMQTTConverterHandlePipelineEventC2D(object):
         self, mocker, stage, stage_configured_for_device, add_pipeline_root, c2d_event
     ):
         stage.handle_pipeline_event(c2d_event)
-        new_event = stage.previous_weakref().handle_pipeline_event.call_args[0][0]
+        new_event = stage.previous.handle_pipeline_event.call_args[0][0]
         assert isinstance(new_event.message, Message)
 
     @pytest.mark.it("Extracts message properties from the mqtt topic for c2d messages")
@@ -1091,7 +1090,7 @@ class TestIoTHubMQTTConverterHandlePipelineEventC2D(object):
             topic=fake_c2d_topic_with_content_type, payload=fake_mqtt_payload
         )
         stage.handle_pipeline_event(event)
-        new_event = stage.previous_weakref().handle_pipeline_event.call_args[0][0]
+        new_event = stage.previous.handle_pipeline_event.call_args[0][0]
         assert new_event.message.content_type == fake_content_type
 
     @pytest.mark.it("Passes up c2d messages destined for another device")
@@ -1102,8 +1101,8 @@ class TestIoTHubMQTTConverterHandlePipelineEventC2D(object):
             topic=fake_c2d_topic_for_another_device, payload=fake_mqtt_payload
         )
         stage.handle_pipeline_event(event)
-        assert stage.previous_weakref().handle_pipeline_event.call_count == 1
-        assert stage.previous_weakref().handle_pipeline_event.call_args == mocker.call(event)
+        assert stage.previous.handle_pipeline_event.call_count == 1
+        assert stage.previous.handle_pipeline_event.call_args == mocker.call(event)
 
 
 @pytest.mark.describe("IotHubMQTTConverter - .run_op() -- called with SendIotRequestOperation")
@@ -1238,8 +1237,8 @@ class TestIoTHubMQTTConverterHandlePipelineEventInputMessages(object):
         self, mocker, stage, stage_configured_for_module, add_pipeline_root, input_message_event
     ):
         stage.handle_pipeline_event(input_message_event)
-        assert stage.previous_weakref().handle_pipeline_event.call_count == 1
-        new_event = stage.previous_weakref().handle_pipeline_event.call_args[0][0]
+        assert stage.previous.handle_pipeline_event.call_count == 1
+        new_event = stage.previous.handle_pipeline_event.call_args[0][0]
         assert isinstance(new_event, pipeline_events_iothub.InputMessageEvent)
 
     @pytest.mark.it("Converts the mqtt payload of an input message into a Message object")
@@ -1247,7 +1246,7 @@ class TestIoTHubMQTTConverterHandlePipelineEventInputMessages(object):
         self, mocker, stage, stage_configured_for_module, add_pipeline_root, input_message_event
     ):
         stage.handle_pipeline_event(input_message_event)
-        new_event = stage.previous_weakref().handle_pipeline_event.call_args[0][0]
+        new_event = stage.previous.handle_pipeline_event.call_args[0][0]
         assert isinstance(new_event.message, Message)
 
     @pytest.mark.it("Extracts the input name of an input message from the mqtt topic")
@@ -1255,7 +1254,7 @@ class TestIoTHubMQTTConverterHandlePipelineEventInputMessages(object):
         self, mocker, stage, stage_configured_for_module, add_pipeline_root, input_message_event
     ):
         stage.handle_pipeline_event(input_message_event)
-        new_event = stage.previous_weakref().handle_pipeline_event.call_args[0][0]
+        new_event = stage.previous.handle_pipeline_event.call_args[0][0]
         assert new_event.input_name == fake_input_name
 
     @pytest.mark.it("Extracts message properties from the mqtt topic for input messages")
@@ -1266,7 +1265,7 @@ class TestIoTHubMQTTConverterHandlePipelineEventInputMessages(object):
             topic=fake_input_message_topic_with_content_type, payload=fake_mqtt_payload
         )
         stage.handle_pipeline_event(event)
-        new_event = stage.previous_weakref().handle_pipeline_event.call_args[0][0]
+        new_event = stage.previous.handle_pipeline_event.call_args[0][0]
         assert new_event.message.content_type == fake_content_type
 
     @pytest.mark.parametrize(
@@ -1282,8 +1281,8 @@ class TestIoTHubMQTTConverterHandlePipelineEventInputMessages(object):
             topic=topic, payload=fake_mqtt_payload
         )
         stage.handle_pipeline_event(event)
-        assert stage.previous_weakref().handle_pipeline_event.call_count == 1
-        assert stage.previous_weakref().handle_pipeline_event.call_args == mocker.call(event)
+        assert stage.previous.handle_pipeline_event.call_count == 1
+        assert stage.previous.handle_pipeline_event.call_args == mocker.call(event)
 
 
 @pytest.fixture
@@ -1304,8 +1303,8 @@ class TestIoTHubMQTTConverterHandlePipelineEventMethodRequets(object):
         self, mocker, stage, stages_configured_for_both, add_pipeline_root, method_request_event
     ):
         stage.handle_pipeline_event(method_request_event)
-        assert stage.previous_weakref().handle_pipeline_event.call_count == 1
-        new_event = stage.previous_weakref().handle_pipeline_event.call_args[0][0]
+        assert stage.previous.handle_pipeline_event.call_count == 1
+        new_event = stage.previous.handle_pipeline_event.call_args[0][0]
         assert isinstance(new_event, pipeline_events_iothub.MethodRequestEvent)
 
     @pytest.mark.it("Makes a MethodRequest object to hold the method request details")
@@ -1313,7 +1312,7 @@ class TestIoTHubMQTTConverterHandlePipelineEventMethodRequets(object):
         self, mocker, stage, stages_configured_for_both, add_pipeline_root, method_request_event
     ):
         stage.handle_pipeline_event(method_request_event)
-        new_event = stage.previous_weakref().handle_pipeline_event.call_args[0][0]
+        new_event = stage.previous.handle_pipeline_event.call_args[0][0]
         assert isinstance(new_event.method_request, MethodRequest)
 
     @pytest.mark.it("Extracts the method name from the mqtt topic")
@@ -1321,7 +1320,7 @@ class TestIoTHubMQTTConverterHandlePipelineEventMethodRequets(object):
         self, mocker, stage, stages_configured_for_both, add_pipeline_root, method_request_event
     ):
         stage.handle_pipeline_event(method_request_event)
-        new_event = stage.previous_weakref().handle_pipeline_event.call_args[0][0]
+        new_event = stage.previous.handle_pipeline_event.call_args[0][0]
         assert new_event.method_request.name == fake_method_name
 
     @pytest.mark.it("Extracts the request id from the mqtt topic")
@@ -1329,7 +1328,7 @@ class TestIoTHubMQTTConverterHandlePipelineEventMethodRequets(object):
         self, mocker, stage, stages_configured_for_both, add_pipeline_root, method_request_event
     ):
         stage.handle_pipeline_event(method_request_event)
-        new_event = stage.previous_weakref().handle_pipeline_event.call_args[0][0]
+        new_event = stage.previous.handle_pipeline_event.call_args[0][0]
         assert new_event.method_request.request_id == fake_request_id
 
     @pytest.mark.it(
@@ -1339,7 +1338,7 @@ class TestIoTHubMQTTConverterHandlePipelineEventMethodRequets(object):
         self, mocker, stage, stages_configured_for_both, add_pipeline_root, method_request_event
     ):
         stage.handle_pipeline_event(method_request_event)
-        new_event = stage.previous_weakref().handle_pipeline_event.call_args[0][0]
+        new_event = stage.previous.handle_pipeline_event.call_args[0][0]
         assert new_event.method_request.payload == json.loads(
             fake_method_request_payload.decode("utf-8")
         )
@@ -1410,8 +1409,8 @@ class TestIotHubMQTTConverterHandlePipelineEventTwinResponse(object):
         fake_event,
     ):
         stage.handle_pipeline_event(event=fake_event)
-        assert stage.previous_weakref().handle_pipeline_event.call_count == 1
-        new_event = stage.previous_weakref().handle_pipeline_event.call_args[0][0]
+        assert stage.previous.handle_pipeline_event.call_count == 1
+        new_event = stage.previous.handle_pipeline_event.call_args[0][0]
         assert isinstance(new_event, pipeline_events_base.IotResponseEvent)
         assert new_event.status_code == fake_status_code
         assert new_event.request_id == fake_request_id
@@ -1421,7 +1420,7 @@ class TestIotHubMQTTConverterHandlePipelineEventTwinResponse(object):
     def test_no_previous_stage(
         self, stage, fixup_stage_for_test, fake_event, unhandled_error_handler
     ):
-        stage.previous_weakref = None
+        stage.previous = None
         stage.handle_pipeline_event(fake_event)
         assert unhandled_error_handler.call_count == 1
         assert isinstance(unhandled_error_handler.call_args[0][0], NotImplementedError)
@@ -1516,8 +1515,8 @@ class TestIotHubMQTTConverterHandlePipelineEventTwinPatch(object):
     )
     def test_calls_previous_stage(self, stage, fixup_stage_for_test, fake_event, fake_patch):
         stage.handle_pipeline_event(fake_event)
-        assert stage.previous_weakref().handle_pipeline_event.call_count == 1
-        new_event = stage.previous_weakref().handle_pipeline_event.call_args[0][0]
+        assert stage.previous.handle_pipeline_event.call_count == 1
+        new_event = stage.previous.handle_pipeline_event.call_args[0][0]
         assert isinstance(new_event, pipeline_events_iothub.TwinDesiredPropertiesPatchEvent)
         assert new_event.patch == fake_patch
 
@@ -1525,7 +1524,7 @@ class TestIotHubMQTTConverterHandlePipelineEventTwinPatch(object):
     def test_no_previous_stage(
         self, stage, fixup_stage_for_test, fake_event, unhandled_error_handler
     ):
-        stage.previous_weakref = None
+        stage.previous = None
         stage.handle_pipeline_event(fake_event)
         assert unhandled_error_handler.call_count == 1
         assert isinstance(unhandled_error_handler.call_args[0][0], NotImplementedError)

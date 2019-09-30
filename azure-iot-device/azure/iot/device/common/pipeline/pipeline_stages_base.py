@@ -8,7 +8,6 @@ import logging
 import abc
 import six
 import uuid
-import weakref
 from six.moves import queue
 from . import pipeline_events_base
 from . import pipeline_ops_base
@@ -61,12 +60,12 @@ class PipelineStage(object):
     :type name: str
     :ivar next: The next stage in the pipeline.  Set to None if this is the last stage in the pipeline.
     :type next: PipelineStage
-    :ivar previous_weakref: The previous stage in the pipeline.  Set to None if this is the first stage in the pipeline.
-    :type previous_weakref: weakref.ref(PipelineStage)
-    :ivar pipeline_root_weakref: The first stage (root) of the pipeline.  This is useful if a stage wants to
+    :ivar previous: The previous stage in the pipeline.  Set to None if this is the first stage in the pipeline.
+    :type previous: PipelineStage
+    :ivar pipeline_root: The first stage (root) of the pipeline.  This is useful if a stage wants to
       submit an operation to the pipeline starting at the root.  This type of behavior is uncommon but not
       unexpected.
-    :type pipeline_root_weakref: weakref.ref(PipelineStage)
+    :type pipeline_root: PipelineStage
     """
 
     def __init__(self):
@@ -75,8 +74,8 @@ class PipelineStage(object):
         """
         self.name = self.__class__.__name__
         self.next = None
-        self.previous_weakref = None
-        self.pipeline_root_weakref = None
+        self.previous = None
+        self.pipeline_root = None
 
     @pipeline_thread.runs_on_pipeline_thread
     def run_op(self, op):
@@ -151,16 +150,16 @@ class PipelineStage(object):
         """
         Called by lower layers when the protocol client connects
         """
-        if self.previous_weakref and self.previous_weakref():
-            self.previous_weakref().on_connected()
+        if self.previous:
+            self.previous.on_connected()
 
     @pipeline_thread.runs_on_pipeline_thread
     def on_disconnected(self):
         """
         Called by lower layers when the protocol client disconnects
         """
-        if self.previous_weakref and self.previous_weakref():
-            self.previous_weakref().on_disconnected()
+        if self.previous:
+            self.previous.on_disconnected()
 
 
 class PipelineRootStage(PipelineStage):
@@ -216,8 +215,8 @@ class PipelineRootStage(PipelineStage):
         while old_tail.next:
             old_tail = old_tail.next
         old_tail.next = new_next_stage
-        new_next_stage.previous_weakref = weakref.ref(old_tail)
-        new_next_stage.pipeline_root_weakref = weakref.ref(self)
+        new_next_stage.previous = old_tail
+        new_next_stage.pipeline_root = self
         return self
 
     @pipeline_thread.runs_on_pipeline_thread
@@ -268,7 +267,7 @@ class EnsureConnectionStage(PipelineStage):
     def _execute_op(self, op):
         # Any operation that requires a connection can trigger a connection if
         # we're not connected.
-        if op.needs_connection and not self.pipeline_root_weakref().connected:
+        if op.needs_connection and not self.pipeline_root.connected:
             logger.debug(
                 "{}({}): Op needs connection.  Queueing this op and starting a ConnectionOperation".format(
                     self.name, op.name
@@ -336,16 +335,13 @@ class SerializeConnectOpsStage(PipelineStage):
             )
             self.queue.put_nowait(op)
 
-        elif (
-            isinstance(op, pipeline_ops_base.ConnectOperation)
-            and self.pipeline_root_weakref().connected
-        ):
+        elif isinstance(op, pipeline_ops_base.ConnectOperation) and self.pipeline_root.connected:
             logger.info("{}({}): Transport is connected.  Completing.".format(self.name, op.name))
             operation_flow.complete_op(stage=self, op=op)
 
         elif (
             isinstance(op, pipeline_ops_base.DisconnectOperation)
-            and not self.pipeline_root_weakref().connected
+            and not self.pipeline_root.connected
         ):
             logger.info(
                 "{}({}): Transport is disconnected.  Completing.".format(self.name, op.name)

@@ -113,7 +113,7 @@ class MQTTTransportStage(PipelineStage):
             # complete a Disconnect operation.
             self._pending_connection_op = None
 
-            self.pipeline_root_weakref().transport = self.transport
+            self.pipeline_root.transport = self.transport
             operation_flow.complete_op(self, op)
 
         elif isinstance(op, pipeline_ops_base.UpdateSasTokenOperation):
