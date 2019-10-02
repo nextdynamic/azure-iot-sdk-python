@@ -264,19 +264,6 @@ class TestInstantiation(object):
         assert transport._op_manager._pending_operation_callbacks == {}
         assert transport._op_manager._unknown_operation_completions == {}
 
-    @pytest.mark.it("Is able to be garbage collected")
-    def test_garbage_collection(self):
-        # Do not mock Paho for this test.
-        gc.collect(2)
-        #assert mqtt_transport.MQTTTransport._object_count == 0
-        transport = MQTTTransport(
-            client_id=fake_device_id, hostname=fake_hostname, username=fake_username
-        )
-        transport_weakref = weakref.ref(transport)
-        del transport
-        gc.collect()
-        assert mqtt_transport.MQTTTransport._object_count == 0
-
 
 @pytest.mark.describe("MQTTTransport - .connect()")
 class TestConnect(object):

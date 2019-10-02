@@ -40,14 +40,6 @@ class BaseRenewableTokenAuthenticationProvider(AuthenticationProvider):
     token renewal operation.
     """
 
-    # Horton tests use this value to validate that these objects
-    # get garbage collected correctly.  This has been problematic
-    # in the past because any objects that are strongly referenced by
-    # the _token_update_timer function will not get collected and that
-    # can lead to serious problems if this referenced object is, say,
-    # part of a transport pipeline that should otherwise be torn down.
-    _object_count = 0
-
     def __init__(self, hostname, device_id, module_id=None):
         """Initializer for Renewable Token Authentication Provider.
 
@@ -61,8 +53,6 @@ class BaseRenewableTokenAuthenticationProvider(AuthenticationProvider):
         :param str module_id: The module ID (optional)
         """
 
-        BaseRenewableTokenAuthenticationProvider._object_count += 1
-
         super(BaseRenewableTokenAuthenticationProvider, self).__init__(
             hostname=hostname, device_id=device_id, module_id=module_id
         )
@@ -75,7 +65,6 @@ class BaseRenewableTokenAuthenticationProvider(AuthenticationProvider):
 
     def __del__(self):
         self._cancel_token_update_timer()
-        BaseRenewableTokenAuthenticationProvider._object_count -= 1
 
     def generate_new_sas_token(self):
         """Force the SAS token to update itself.
@@ -181,12 +170,12 @@ class BaseRenewableTokenAuthenticationProvider(AuthenticationProvider):
         #
         # If timerfunc used `self` directly, that would be a strong reference, and that strong
         # reference would prevent `self` from being collected as long as the timer existed.
-        # If this isn't collected when the client is collected, then the object that implements the 
+        # If this isn't collected when the client is collected, then the object that implements the
         # on_sas_token_updated_hndler doesn't get collected.  Since that object is part of the
         # pipeline, a major part of the pipeline ends up staying around, probably orphaned from
         # the client.  Since that orphaned part of the pipeline contains Paho, bad things can happen
-        # if we don't clean up Paho correctly.  This is especially noticable if one process 
-        # destroys a client object and creates a new one.  
+        # if we don't clean up Paho correctly.  This is especially noticable if one process
+        # destroys a client object and creates a new one.
         #
         self_weakref = weakref.ref(self)
 
