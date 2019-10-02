@@ -4,17 +4,15 @@
 # license information.
 # --------------------------------------------------------------------------
 
-from azure.iot.device.common import mqtt_transport
+import azure.iot.device.common.mqtt_transport as mqtt_transport
 from azure.iot.device.common.mqtt_transport import MQTTTransport, OperationManager
 from azure.iot.device.common.models.x509 import X509
 from azure.iot.device.common import transport_exceptions as errors
-import gc
 import paho.mqtt.client as mqtt
 import ssl
 import copy
 import pytest
 import logging
-import weakref
 
 logging.basicConfig(level=logging.DEBUG)
 

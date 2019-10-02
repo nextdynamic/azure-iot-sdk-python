@@ -170,6 +170,7 @@ class BaseRenewableTokenAuthenticationProvider(AuthenticationProvider):
         #
         # If timerfunc used `self` directly, that would be a strong reference, and that strong
         # reference would prevent `self` from being collected as long as the timer existed.
+        #
         # If this isn't collected when the client is collected, then the object that implements the
         # on_sas_token_updated_hndler doesn't get collected.  Since that object is part of the
         # pipeline, a major part of the pipeline ends up staying around, probably orphaned from

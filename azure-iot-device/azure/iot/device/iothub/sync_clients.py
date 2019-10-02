@@ -8,7 +8,6 @@ Azure IoTHub Device SDK for Python.
 """
 
 import logging
-import weakref
 from .abstract_clients import (
     AbstractIoTHubClient,
     AbstractIoTHubDeviceClient,
