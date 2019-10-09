@@ -525,3 +525,129 @@ class CoordinateRequestAndResponseStage(PipelineStage):
                 )
         else:
             self._send_event_up(event)
+
+class TimeoutStage(PipelineStage):
+    def __init__(self):
+        super(TimeoutStage, self).__init__()
+        self.in_progress = []
+        self.timer = None
+        self.timeout_intervals = {
+            pipeline_ops_mqtt.MQTTSubscribeOperation: 10,
+            pipeline_ops_mqtt.MQTTUnsubscribeOperation: 10,
+        }
+
+    @pipeline_thread.runs_on_pipeline_thread
+    def _should_watch_for_timeout(self, op):
+        return op.__class__ in self.timeout_intervals
+
+    @pipeline_thread.runs_on_pipeline_thread
+    def _execute_op(self, op):
+        if self._should_watch_for_timeout(op):
+            op.expire_time = time.time() + self.timeout_intervals[op.__class__]
+            self.in_progress.append(op)
+            logger.info(
+                "{}({}): Tracking op for timeout.  Sending down op - in progress = {}".format(
+                    self.name, op.name, len(self.in_progress)
+                )
+            )
+            self._ensure_timer()
+            self.send_op_down_and_intercept_return(op, intercept_return=self._on_intercepted_return)
+        else:
+            self.send_op_down(op)
+
+    @pipeline_thread.runs_on_pipeline_thread
+    def _on_intercepted_return(self, op, error):
+        if op in self.in_progress:
+            self.in_progress.remove(op)
+            if len(self.in_progress) == 0:
+                self.timer = None
+        logger.info(
+            "{}({}): Op completed.  in progress = {}".format(
+                self.name, op.name, len(self.in_progress)
+            )
+        )
+        self.send_op_up(op, error)
+
+    @pipeline_thread.runs_on_pipeline_thread
+    def _ensure_timer(self):
+        if len(self.in_progress) and not self.timer:
+            current_time = time.time()
+            new_interval = sys.maxsize
+            for op in self.in_progress:
+                time_left_on_this_op = op.expire_time - current_time
+                new_interval = max(0, min(new_interval, time_left_on_this_op))
+            logger.info("{}: setting timer for {} seconds".format(self.name, new_interval))
+            self.timer = Timer(new_interval, CallableWeakMethod(self, "_on_timer_expiration"))
+            self.timer.start()
+
+    @pipeline_thread.invoke_on_pipeline_thread
+    def _on_timer_expiration(self):
+        logger.info("{}: timer expired.  checking for timed out ops".format(self.name))
+        current_time = time.time()
+        listcopy = self.in_progress.copy()
+        for op in listcopy:
+            if current_time >= op.expire_time:
+                logger.info("{}({}): returning timeout error".format(self.name, op.name))
+                self.in_progress.remove(op)
+                # BKTODO: better error
+                self.complete_op(op, Exception("BKTimeout"))
+        self.timer = None
+        self._ensure_timer()
+
+
+class RetryStage(PipelineStage):
+    def __init__(self):
+        super(RetryStage, self).__init__()
+        self.retry_intervals = {
+            pipeline_ops_mqtt.MQTTSubscribeOperation: 20,
+            pipeline_ops_mqtt.MQTTUnsubscribeOperation: 20,
+        }
+        self.waiting_to_retry = []
+
+    @pipeline_thread.runs_on_pipeline_thread
+    def _execute_op(self, op):
+        self.send_op_down_and_intercept_return(op, intercept_return=self._on_intercepted_return)
+
+    @pipeline_thread.runs_on_pipeline_thread
+    def _should_watch_for_retry(self, op):
+        return op.__class__ in self.retry_intervals
+
+    @pipeline_thread.runs_on_pipeline_thread
+    def _should_retry(self, op, error):
+        if error:
+            if self._should_watch_for_retry(op):
+                # BKTODO: better error
+                if str(error) == "BKTimeout":
+                    return True
+        return False
+
+    @pipeline_thread.runs_on_pipeline_thread
+    def _on_intercepted_return(self, op, error):
+        if self._should_retry(op, error):
+            self_weakref = weakref.ref(self)
+
+            @pipeline_thread.invoke_on_pipeline_thread_nowait
+            def do_retry():
+                this = self_weakref()
+                logger.info("{}({}): retrying".format(this.name, op.name))
+                del op.retry_timer
+                this.waiting_to_retry.remove(op)
+                # Don't just send it down directly.  Instead, go through _execute_op so we get
+                # retry functionality this time too
+                this._execute_op(op)
+
+            interval = self.retry_intervals[op.__class__]
+            logger.warning(
+                "{}({}): Op needs retry with interval {} because of {}.  Setting timer.".format(
+                    self.name, op.name, interval, error
+                )
+            )
+
+            # if we don't keep track of this op, it might get collected.
+            self.waiting_to_retry.append(op)
+            op.completed = False
+            op.retry_timer = Timer(self.retry_intervals[op.__class__], do_retry)
+            op.retry_timer.start()
+
+        else:
+            self.send_op_up(op, error)
