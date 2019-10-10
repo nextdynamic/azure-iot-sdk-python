@@ -7,6 +7,9 @@
 import os
 import asyncio
 from azure.iot.device.aio import ProvisioningDeviceClient
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 provisioning_host = os.getenv("PROVISIONING_HOST")
 id_scope = os.getenv("PROVISIONING_IDSCOPE")
