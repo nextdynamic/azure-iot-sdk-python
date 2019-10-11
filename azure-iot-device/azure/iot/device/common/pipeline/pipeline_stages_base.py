@@ -526,6 +526,7 @@ class CoordinateRequestAndResponseStage(PipelineStage):
         else:
             self._send_event_up(event)
 
+
 class TimeoutStage(PipelineStage):
     def __init__(self):
         super(TimeoutStage, self).__init__()
@@ -551,9 +552,11 @@ class TimeoutStage(PipelineStage):
                 )
             )
             self._ensure_timer()
-            self.send_op_down_and_intercept_return(op, intercept_return=self._on_intercepted_return)
+            self._send_op_down_and_intercept_return(
+                op=op, intercept_return=self._on_intercepted_return
+            )
         else:
-            self.send_op_down(op)
+            self._send_op_down(op)
 
     @pipeline_thread.runs_on_pipeline_thread
     def _on_intercepted_return(self, op, error):
@@ -566,7 +569,7 @@ class TimeoutStage(PipelineStage):
                 self.name, op.name, len(self.in_progress)
             )
         )
-        self.send_op_up(op, error)
+        self._send_completed_op_up(op, error)
 
     @pipeline_thread.runs_on_pipeline_thread
     def _ensure_timer(self):
@@ -590,7 +593,7 @@ class TimeoutStage(PipelineStage):
                 logger.info("{}({}): returning timeout error".format(self.name, op.name))
                 self.in_progress.remove(op)
                 # BKTODO: better error
-                self.complete_op(op, Exception("BKTimeout"))
+                self._complete_op(op, Exception("BKTimeout"))
         self.timer = None
         self._ensure_timer()
 
@@ -606,7 +609,9 @@ class RetryStage(PipelineStage):
 
     @pipeline_thread.runs_on_pipeline_thread
     def _execute_op(self, op):
-        self.send_op_down_and_intercept_return(op, intercept_return=self._on_intercepted_return)
+        self._send_op_down_and_intercept_return(
+            op=op, intercept_return=self._on_intercepted_return
+        )
 
     @pipeline_thread.runs_on_pipeline_thread
     def _should_watch_for_retry(self, op):
@@ -650,4 +655,4 @@ class RetryStage(PipelineStage):
             op.retry_timer.start()
 
         else:
-            self.send_op_up(op, error)
+            self._send_completed_op_up(op, error)
