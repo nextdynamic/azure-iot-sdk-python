@@ -587,7 +587,7 @@ class TimeoutStage(PipelineStage):
     def _on_timer_expiration(self):
         logger.info("{}: timer expired.  checking for timed out ops".format(self.name))
         current_time = time.time()
-        listcopy = self.in_progress.copy()
+        listcopy = list(self.in_progress)   # list.copy not available in 2.7
         for op in listcopy:
             if current_time >= op.expire_time:
                 logger.info("{}({}): returning timeout error".format(self.name, op.name))
