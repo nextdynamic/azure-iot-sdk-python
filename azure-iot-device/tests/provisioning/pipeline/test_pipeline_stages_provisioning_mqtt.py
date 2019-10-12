@@ -30,6 +30,7 @@ from tests.common.pipeline.helpers import (
 )
 from tests.provisioning.pipeline.helpers import all_provisioning_ops, all_provisioning_events
 from tests.common.pipeline import pipeline_stage_test
+import json
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -207,7 +208,11 @@ class TestProvisioningMQTTConverterWithSetProvisioningClientConnectionArgsOperat
 basic_ops = [
     {
         "op_class": pipeline_ops_provisioning.SendRegistrationRequestOperation,
-        "op_init_kwargs": {"request_id": fake_request_id, "request_payload": fake_mqtt_payload},
+        "op_init_kwargs": {
+            "request_id": fake_request_id,
+            "request_payload": fake_mqtt_payload,
+            "registration_id": fake_registration_id,
+        },
         "new_op_class": pipeline_ops_mqtt.MQTTPublishOperation,
     },
     {
@@ -278,11 +283,17 @@ publish_ops = [
     {
         "name": "send register request",
         "op_class": pipeline_ops_provisioning.SendRegistrationRequestOperation,
-        "op_init_kwargs": {"request_id": fake_request_id, "request_payload": fake_mqtt_payload},
+        "op_init_kwargs": {
+            "request_id": fake_request_id,
+            "request_payload": fake_mqtt_payload,
+            "registration_id": fake_registration_id,
+        },
         "topic": "$dps/registrations/PUT/iotdps-register/?$rid={request_id}".format(
             request_id=fake_request_id
         ),
-        "publish_payload": fake_mqtt_payload,
+        "publish_payload": '{{"registrationId": "{reg_id}", "payload": {json_payload}}}'.format(
+            reg_id=fake_registration_id, json_payload=json.dumps(fake_mqtt_payload)
+        ),
     },
     {
         "name": "send query request",
@@ -298,6 +309,14 @@ publish_ops = [
         "publish_payload": fake_mqtt_payload,
     },
 ]
+
+
+# class FakeRegistrationPayload(object):
+#     def __init__(self, registration_id, custom_payload):
+#         # This is not a convention to name variables in python but the
+#         # DPS service spec needs the name to be exact for it to work
+#         self.registrationId = registration_id
+#         self.payload = custom_payload
 
 
 @pytest.mark.parametrize("params", publish_ops, ids=[x["name"] for x in publish_ops])

@@ -103,7 +103,7 @@ class TestRegister(object):
         )
         assert (
             mock_request_response_provider.send_request.call_args_list[0][1]["request_payload"]
-            == " "
+            is None
         )
 
 
@@ -163,7 +163,7 @@ class TestRegisterResponse(object):
 
         assert state_based_mqtt.send_request.call_count == 2
         assert state_based_mqtt.send_request.call_args_list[0][1]["request_id"] == fake_request_id
-        assert state_based_mqtt.send_request.call_args_list[0][1]["request_payload"] == " "
+        assert state_based_mqtt.send_request.call_args_list[0][1]["request_payload"] is None
 
         assert (
             state_based_mqtt.send_request.call_args_list[1][1]["request_id"]
@@ -232,7 +232,7 @@ class TestRegisterResponse(object):
 
         assert state_based_mqtt.send_request.call_count == 1
         assert state_based_mqtt.send_request.call_args_list[0][1]["request_id"] == fake_request_id
-        assert state_based_mqtt.send_request.call_args_list[0][1]["request_payload"] == " "
+        assert state_based_mqtt.send_request.call_args_list[0][1]["request_payload"] is None
 
         assert mock_callback.call_count == 1
         assert isinstance(mock_callback.call_args[1]["result"], RegistrationResult)
@@ -280,7 +280,7 @@ class TestRegisterResponse(object):
 
         assert state_based_mqtt.send_request.call_count == 1
         assert state_based_mqtt.send_request.call_args_list[0][1]["request_id"] == fake_request_id
-        assert state_based_mqtt.send_request.call_args_list[0][1]["request_payload"] == " "
+        assert state_based_mqtt.send_request.call_args_list[0][1]["request_payload"] is None
 
         assert mock_callback.call_count == 1
         assert isinstance(mock_callback.call_args[1]["error"], ValueError)
@@ -378,10 +378,10 @@ class TestRegisterResponse(object):
 
         assert state_based_mqtt.send_request.call_count == 2
         assert state_based_mqtt.send_request.call_args_list[0][1]["request_id"] == fake_request_id
-        assert state_based_mqtt.send_request.call_args_list[0][1]["request_payload"] == " "
+        assert state_based_mqtt.send_request.call_args_list[0][1]["request_payload"] is None
 
         assert state_based_mqtt.send_request.call_args_list[1][1]["request_id"] == fake_request_id_2
-        assert state_based_mqtt.send_request.call_args_list[1][1]["request_payload"] == " "
+        assert state_based_mqtt.send_request.call_args_list[1][1]["request_payload"] is None
 
     @pytest.mark.it("Calls callback of register with error when there is a time out")
     def test_receive_register_response_after_query_time_passes_calls_callback_with_error(
@@ -495,7 +495,7 @@ class TestQueryResponse(object):
 
         assert state_based_mqtt.send_request.call_count == 3
         assert state_based_mqtt.send_request.call_args_list[0][1]["request_id"] == fake_request_id
-        assert state_based_mqtt.send_request.call_args_list[0][1]["request_payload"] == " "
+        assert state_based_mqtt.send_request.call_args_list[0][1]["request_payload"] is None
 
         assert (
             state_based_mqtt.send_request.call_args_list[1][1]["request_id"]
@@ -597,7 +597,7 @@ class TestQueryResponse(object):
 
         assert state_based_mqtt.send_request.call_count == 2
         assert state_based_mqtt.send_request.call_args_list[0][1]["request_id"] == fake_request_id
-        assert state_based_mqtt.send_request.call_args_list[0][1]["request_payload"] == " "
+        assert state_based_mqtt.send_request.call_args_list[0][1]["request_payload"] is None
 
         assert (
             state_based_mqtt.send_request.call_args_list[1][1]["request_id"]
@@ -673,7 +673,7 @@ class TestQueryResponse(object):
 
         assert state_based_mqtt.send_request.call_count == 2
         assert state_based_mqtt.send_request.call_args_list[0][1]["request_id"] == fake_request_id
-        assert state_based_mqtt.send_request.call_args_list[0][1]["request_payload"] == " "
+        assert state_based_mqtt.send_request.call_args_list[0][1]["request_payload"] is None
 
         assert (
             state_based_mqtt.send_request.call_args_list[1][1]["request_id"]
@@ -759,7 +759,7 @@ class TestQueryResponse(object):
 
         assert state_based_mqtt.send_request.call_count == 3
         assert state_based_mqtt.send_request.call_args_list[0][1]["request_id"] == fake_request_id
-        assert state_based_mqtt.send_request.call_args_list[0][1]["request_payload"] == " "
+        assert state_based_mqtt.send_request.call_args_list[0][1]["request_payload"] is None
 
         assert (
             state_based_mqtt.send_request.call_args_list[1][1]["request_id"]

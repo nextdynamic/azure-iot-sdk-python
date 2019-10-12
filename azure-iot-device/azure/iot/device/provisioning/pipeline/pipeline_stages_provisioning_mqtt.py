@@ -70,21 +70,18 @@ class ProvisioningMQTTConverterStage(PipelineStage):
         elif isinstance(op, pipeline_ops_provisioning.SendRegistrationRequestOperation):
             # Convert Sending the request into MQTT Publish operations
             topic = mqtt_topic.get_topic_for_register(op.request_id)
-            # publish_payload = None
-            # if op.request_payload is None:
-            #     publish_payload = "{{\"registrationId\":\"{reg_id}\"}}".format(reg_id=op.registration_id)
-            # else:
-            #     json_custom_payload = json.dumps(op.request_payload, default=lambda o: o.__dict__)
-            #     publish_payload = "{{\"registrationId\":\"{reg_id}\",\"payload\":{json_payload}}}".format(reg_id=op.registration_id,json_payload=json_custom_payload)
 
-            # registration_payload = DeviceRegistrationPayload(registration_id=op.registration_id, custom_payload=op.request_payload)
+            # This is an easier way to get the json eventually rather than formatting strings with if else conditions
+            registration_payload = DeviceRegistrationPayload(
+                registration_id=op.registration_id, custom_payload=op.request_payload
+            )
             # print(registration_payload.get_json())
 
             operation_flow.delegate_to_different_op(
                 stage=self,
                 original_op=op,
                 new_op=pipeline_ops_mqtt.MQTTPublishOperation(
-                    topic=topic, payload=op.request_payload
+                    topic=topic, payload=registration_payload.get_json()
                 ),
             )
 
@@ -160,7 +157,9 @@ class ProvisioningMQTTConverterStage(PipelineStage):
 
 class DeviceRegistrationPayload(object):
     def __init__(self, registration_id, custom_payload):
-        self.registration_id = registration_id
+        # This is not a convention to name variables in python but the
+        # DPS service spec needs the name to be exact for it to work
+        self.registrationId = registration_id
         self.payload = custom_payload
 
     def get_json(self):

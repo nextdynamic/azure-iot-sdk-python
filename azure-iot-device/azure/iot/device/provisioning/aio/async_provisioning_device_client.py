@@ -42,7 +42,7 @@ class ProvisioningDeviceClient(AbstractProvisioningDeviceClient):
         super(ProvisioningDeviceClient, self).__init__(provisioning_pipeline)
         self._polling_machine = PollingMachine(provisioning_pipeline)
 
-    async def register(self):
+    async def register(self):  # noqa: E999
         """
         Register the device with the provisioning service.
         Before returning the client will also disconnect from the provisioning service.
@@ -53,13 +53,13 @@ class ProvisioningDeviceClient(AbstractProvisioningDeviceClient):
         register_async = async_adapter.emulate_async(self._polling_machine.register)
 
         callback = async_adapter.AwaitableCallback(return_arg_name="result")
-        await register_async(self._request_payload, callback=callback)
+        await register_async(payload=self._request_payload, callback=callback)
         result = await callback.completion()
 
         log_on_register_complete(result)
         return result
 
-    async def cancel(self):
+    async def cancel(self):  # noqa: E999
         """
         Before returning the client will also disconnect from the provisioning service.
 

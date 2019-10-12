@@ -47,9 +47,9 @@ wizard_a = Wizard("Harry", "Potter", properties)
 # custom_payload = json.dumps(custom_payload, default=lambda o: o.__dict__)
 
 # custom_payload = "{\"registrationId\":\"testhardwareid1234\",\"payload\":{\"first_name\": \"Harry\", \"last_name\": \"Potter\", \"props\": {\"House\": \"Gryffindor\", \"Muggle-Born\": \"False\"}}}"
-custom_payload = '{"registration_id":"testhardwareid1234","payload":{"first_name":"Harry", "last_name": "Potter", "props": {"House": "Gryffindor", "Muggle-Born": "False"}}}'
+# custom_payload = '{"registrationId":"testhardwareid1234","payload":{"first_name":"Harry", "last_name": "Potter", "props": {"House": "Gryffindor", "Muggle-Born": "False"}}}'
 
-provisioning_device_client.set_provisioning_payload(custom_payload)
+provisioning_device_client.set_provisioning_payload(wizard_a)
 registration_result = provisioning_device_client.register()
 # The result can be directly printed to view the important details.
 print(registration_result)
