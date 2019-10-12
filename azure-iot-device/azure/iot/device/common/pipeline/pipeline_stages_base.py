@@ -553,7 +553,7 @@ class TimeoutStage(PipelineStage):
             )
             self._ensure_timer()
             self._send_op_down_and_intercept_return(
-                op=op, intercept_return=self._on_intercepted_return
+                op=op, intercepted_return=self._on_intercepted_return
             )
         else:
             self._send_op_down(op)
@@ -587,7 +587,7 @@ class TimeoutStage(PipelineStage):
     def _on_timer_expiration(self):
         logger.info("{}: timer expired.  checking for timed out ops".format(self.name))
         current_time = time.time()
-        listcopy = list(self.in_progress)   # list.copy not available in 2.7
+        listcopy = list(self.in_progress)  # list.copy not available in 2.7
         for op in listcopy:
             if current_time >= op.expire_time:
                 logger.info("{}({}): returning timeout error".format(self.name, op.name))
@@ -610,7 +610,7 @@ class RetryStage(PipelineStage):
     @pipeline_thread.runs_on_pipeline_thread
     def _execute_op(self, op):
         self._send_op_down_and_intercept_return(
-            op=op, intercept_return=self._on_intercepted_return
+            op=op, intercepted_return=self._on_intercepted_return
         )
 
     @pipeline_thread.runs_on_pipeline_thread
