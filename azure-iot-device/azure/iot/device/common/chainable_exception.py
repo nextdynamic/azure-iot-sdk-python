@@ -9,6 +9,8 @@ class ChainableException(Exception):
     """This exception stores a reference to a previous exception which has caused
     the current one"""
 
+    # TODO: update ths class to accept arbitrary *args like other Exceptions,
+    # in order to support multiple arguments
     def __init__(self, message=None, cause=None):
         # By using .__cause__, this will allow typical stack trace behavior in Python 3,
         # while still being able to operate in Python 2.

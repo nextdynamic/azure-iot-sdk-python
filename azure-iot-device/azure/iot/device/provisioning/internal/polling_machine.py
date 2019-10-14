@@ -9,6 +9,8 @@ import json
 import traceback
 from threading import Timer
 from transitions import Machine
+from azure.iot.device import exceptions
+from azure.iot.device.common.chainable_exception import ChainableException
 from azure.iot.device.provisioning.pipeline import constant
 import six.moves.urllib as urllib
 from .request_response_provider import RequestResponseProvider
@@ -23,6 +25,10 @@ logger = logging.getLogger(__name__)
 
 POS_STATUS_CODE_IN_TOPIC = 3
 POS_QUERY_PARAM_PORTION = 2
+
+
+class PollingMachineError(ChainableException):
+    pass
 
 
 class PollingMachine(object):
@@ -236,7 +242,9 @@ class PollingMachine(object):
             del self._operations[request_id]
             self._trig_wait(intermediate_registration_result)
         elif int(status_code, 10) >= 300:  # pure failure
-            self._registration_error = ValueError("Incoming message failure")
+            self._registration_error = exceptions.ServiceError(
+                "{}: Incoming message failure".format(status_code)
+            )
             self._trig_error()
         else:  # successful case, transition into complete or poll status
             self._process_successful_response(request_id, retry_after, response)
@@ -269,10 +277,12 @@ class PollingMachine(object):
                 intermediate_registration_result.operation_id = operation_id
                 self._trig_wait(intermediate_registration_result)
             else:
-                self._registration_error = ValueError("This request was never sent")
+                self._registration_error = PollingMachineError("This request was never sent")
                 self._trig_error()
         elif int(status_code, 10) >= 300:  # pure failure
-            self._registration_error = ValueError("Incoming message failure")
+            self._registration_error = exceptions.ServiceError(
+                "{}: Incoming message failure".format(status_code)
+            )
             self._trig_error()
         else:  # successful status code case, transition into complete or another poll status
             self._process_successful_response(request_id, retry_after, response)
@@ -295,7 +305,11 @@ class PollingMachine(object):
             self._registration_result = complete_registration_result
             self._trig_complete()
         else:
-            self._registration_error = ValueError("Other types of failure have occurred.", response)
+            # TODO: When ChainableExceptions support multiple args, the response will no longer have to be
+            # concatenated in the main message
+            self._registration_error = exceptions.ServiceError(
+                "Other types of failure have occurred.\nResponse: {}".format(response)
+            )
             self._trig_error()
 
     def _inform_no_process(self, event_data):
@@ -333,8 +347,9 @@ class PollingMachine(object):
         def time_up_query():
             logger.error("Time is up for query timer")
             self._query_timer.cancel()
-            # TimeoutError not defined in python 2
-            self._registration_error = ValueError("Time is up for query timer")
+            # TODO: revisit error design here. TimeoutError is not in Python 2,
+            # but PollingMachineError doesn't seem quite right either.
+            self._registration_error = PollingMachineError("Time is up for query timer")
             self._trig_error()
 
         self._query_timer = Timer(constant.DEFAULT_TIMEOUT_INTERVAL, time_up_query)

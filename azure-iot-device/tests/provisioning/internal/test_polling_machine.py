@@ -9,6 +9,7 @@ import datetime
 import logging
 
 from mock import MagicMock
+from azure.iot.device import exceptions
 from azure.iot.device.provisioning.internal.request_response_provider import RequestResponseProvider
 from azure.iot.device.provisioning.internal.polling_machine import PollingMachine
 from azure.iot.device.provisioning.models.registration_result import RegistrationResult
@@ -283,8 +284,7 @@ class TestRegisterResponse(object):
         assert state_based_mqtt.send_request.call_args_list[0][1]["request_payload"] == " "
 
         assert mock_callback.call_count == 1
-        assert isinstance(mock_callback.call_args[1]["error"], ValueError)
-        assert mock_callback.call_args[1]["error"].args[0] == "Incoming message failure"
+        assert isinstance(mock_callback.call_args[1]["error"], exceptions.ServiceError)
 
     @pytest.mark.it(
         "Calls callback of register with error when there is a response with unknown registration status"
@@ -327,11 +327,7 @@ class TestRegisterResponse(object):
         polling_machine._on_disconnect_completed_error()
 
         assert mock_callback.call_count == 1
-        assert isinstance(mock_callback.call_args[1]["error"], ValueError)
-        assert (
-            mock_callback.call_args[1]["error"].args[0] == "Other types of failure have occurred."
-        )
-        assert mock_callback.call_args[1]["error"].args[1] == fake_payload_result
+        assert isinstance(mock_callback.call_args[1]["error"], exceptions.ServiceError)
 
     @pytest.mark.it("Calls register again when there is a response with status code > 429")
     def test_receive_register_response_greater_than_429_does_register_again(self, mocker):
@@ -685,8 +681,7 @@ class TestQueryResponse(object):
         assert state_based_mqtt.send_request.call_args_list[1][1]["request_payload"] == " "
 
         assert mock_callback.call_count == 1
-        assert isinstance(mock_callback.call_args[1]["error"], ValueError)
-        assert mock_callback.call_args[1]["error"].args[0] == "Incoming message failure"
+        assert isinstance(mock_callback.call_args[1]["error"], exceptions.ServiceError)
 
     @pytest.mark.it("Calls query again when there is a response with status code > 429")
     def test_receive_query_response_greater_than_429_does_query_again_with_same_operation_id(
