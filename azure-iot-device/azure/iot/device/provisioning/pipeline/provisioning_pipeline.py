@@ -93,8 +93,7 @@ class ProvisioningPipeline(object):
 
         def pipeline_callback(op, error):
             if error:
-                # TODO we need error semantics on the client
-                exit(1)
+                raise error
             if callback:
                 callback()
 
@@ -110,8 +109,7 @@ class ProvisioningPipeline(object):
 
         def pipeline_callback(op, error):
             if error:
-                # TODO we need error semantics on the client
-                exit(1)
+                raise error
             if callback:
                 callback()
 
@@ -128,8 +126,7 @@ class ProvisioningPipeline(object):
 
         def pipeline_callback(op, error):
             if error:
-                # TODO we need error semantics on the client
-                exit(1)
+                raise error
             if callback:
                 callback()
 
@@ -158,8 +155,7 @@ class ProvisioningPipeline(object):
 
         def pipeline_callback(op, error):
             if error:
-                # TODO we need error semantics on the client
-                exit(1)
+                raise error
             if callback:
                 callback()
 
@@ -177,8 +173,7 @@ class ProvisioningPipeline(object):
 
         def pipeline_callback(op, error):
             if error:
-                # TODO we need error semantics on the client
-                exit(1)
+                raise error
             if callback:
                 callback()
 
