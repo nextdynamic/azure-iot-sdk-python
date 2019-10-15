@@ -5,7 +5,6 @@
 # --------------------------------------------------------------------------
 import logging
 import pytest
-import sys
 import six
 from azure.iot.device.common import transport_exceptions, handle_exceptions
 from azure.iot.device.common.pipeline import (
@@ -46,12 +45,6 @@ def apply_fake_pipeline_thread(fake_pipeline_thread):
     pass
 
 
-class FakeOperation(pipeline_ops_base.PipelineOperation):
-    pass
-
-
-this_module = sys.modules[__name__]
-
 fake_client_id = "__fake_client_id__"
 fake_hostname = "__fake_hostname__"
 fake_username = "__fake_username__"
@@ -74,10 +67,15 @@ ops_handled_by_this_stage = [
 
 events_handled_by_this_stage = []
 
+
+class TestMQTTTransportStage(object):
+    pass
+
+
 # TODO: Potentially refactor this out to package level class that can be inherited
 pipeline_stage_test.add_base_pipeline_stage_tests(
+    test_cls=TestMQTTTransportStage,
     cls=pipeline_stages_mqtt.MQTTTransportStage,
-    module=this_module,
     all_ops=all_common_ops,
     handled_ops=ops_handled_by_this_stage,
     all_events=all_common_events,
@@ -174,13 +172,14 @@ class RunOpTests(object):
     @pytest.mark.it(
         "Completes the operation with failure if an unexpected Exception is raised while executing the operation"
     )
-    def test_completes_operation_with_error(self, mocker, stage, arbitrary_exception):
-        mock_op = FakeOperation(callback=mocker.MagicMock())
+    def test_completes_operation_with_error(self, mocker, stage, arbitrary_exception, arbitrary_op):
         stage._execute_op = mocker.MagicMock(side_effect=arbitrary_exception)
 
-        stage.run_op(mock_op)
-        assert mock_op.callback.call_count == 1
-        assert mock_op.callback.call_args == mocker.call(mock_op, error=arbitrary_exception)
+        stage.run_op(arbitrary_op)
+        assert arbitrary_op.callback.call_count == 1
+        assert arbitrary_op.callback.call_args == mocker.call(
+            arbitrary_op, error=arbitrary_exception
+        )
 
     @pytest.mark.it(
         "Allows any BaseException that was raised during execution of the operation to propogate"

@@ -5,7 +5,6 @@
 # --------------------------------------------------------------------------
 import logging
 import pytest
-import sys
 import six
 import threading
 from six.moves import queue
@@ -24,7 +23,6 @@ from tests.common.pipeline.helpers import (
 )
 from tests.common.pipeline import pipeline_stage_test
 
-this_module = sys.modules[__name__]
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -38,15 +36,90 @@ def apply_fake_pipeline_thread(fake_pipeline_thread):
     pass
 
 
-# Workaround for flake8.  A class with this name is actually created inside
-# add_base_pipeline_stage_test, but flake8 doesn't know that
-class TestPipelineRootStagePipelineThreading:
-    pass
+@pytest.mark.describe("PipelineRootStage object")
+class TestPipelineRootStage(object):
+    @pytest.mark.it("Calls operation callback in callback thread")
+    def test_pipeline_root_runs_callback_in_callback_thread(self, stage, mocker):
+        # the stage fixture comes from the TestPipelineRootStagePipelineThreading object that
+        # this test method gets added to, so it's a PipelineRootStage object
+        stage.pipeline_root = stage
+        callback_called = threading.Event()
+
+        def callback(op, error):
+            assert threading.current_thread().name == "callback"
+            callback_called.set()
+
+        op = pipeline_ops_base.ConnectOperation(callback=callback)
+        stage.run_op(op)
+        callback_called.wait()
+
+    @pytest.mark.it("Runs operation in pipeline thread")
+    def test_pipeline_root_runs_operation_in_pipeline_thread(
+        self, mocker, stage, arbitrary_op, fake_non_pipeline_thread
+    ):
+        # the stage fixture comes from the TestPipelineRootStagePipelineThreading object that
+        # this test method gets added to, so it's a PipelineRootStage object
+        assert threading.current_thread().name != "pipeline"
+
+        def mock_execute_op(self, op):
+            print("mock_execute_op called")
+            assert threading.current_thread().name == "pipeline"
+            op.callback(op)
+
+        mock_execute_op = mocker.MagicMock(mock_execute_op)
+        stage._execute_op = mock_execute_op
+
+        stage.run_op(arbitrary_op)
+        assert mock_execute_op.call_count == 1
+
+    @pytest.mark.it("Calls on_connected_handler in callback thread")
+    def test_pipeline_root_runs_on_connected_in_callback_thread(self, stage, mocker):
+        stage.pipeline_root = stage
+        callback_called = threading.Event()
+
+        def callback(*arg, **argv):
+            assert threading.current_thread().name == "callback"
+            callback_called.set()
+
+        stage.on_connected_handler = callback
+
+        stage.on_connected()
+        callback_called.wait()
+
+    @pytest.mark.it("Calls on_disconnected_handler in callback thread")
+    def test_pipeline_root_runs_on_disconnected_in_callback_thread(self, stage, mocker):
+        stage.pipeline_root = stage
+        callback_called = threading.Event()
+
+        def callback(*arg, **argv):
+            assert threading.current_thread().name == "callback"
+            callback_called.set()
+
+        stage.on_disconnected_handler = callback
+
+        stage.on_disconnected()
+        callback_called.wait()
+
+    @pytest.mark.it("Calls on_event_received_handler in callback thread")
+    def test_pipeline_root_runs_on_event_received_in_callback_thread(
+        self, stage, mocker, arbitrary_event
+    ):
+        stage.pipeline_root = stage
+        callback_called = threading.Event()
+
+        def callback(*arg, **argv):
+            assert threading.current_thread().name == "callback"
+            callback_called.set()
+
+        stage.on_pipeline_event_handler = callback
+
+        stage.handle_pipeline_event(arbitrary_event)
+        callback_called.wait()
 
 
 pipeline_stage_test.add_base_pipeline_stage_tests(
+    test_cls=TestPipelineRootStage,
     cls=pipeline_stages_base.PipelineRootStage,
-    module=this_module,
     all_ops=all_common_ops,
     handled_ops=[],
     all_events=all_common_events,
@@ -61,106 +134,14 @@ pipeline_stage_test.add_base_pipeline_stage_tests(
 )
 
 
-@pytest.mark.it("Calls operation callback in callback thread")
-def _test_pipeline_root_runs_callback_in_callback_thread(self, stage, mocker):
-    # the stage fixture comes from the TestPipelineRootStagePipelineThreading object that
-    # this test method gets added to, so it's a PipelineRootStage object
-    stage.pipeline_root = stage
-    callback_called = threading.Event()
+@pytest.mark.describe("EnsureConnectionStage object")
+class TestEnsureConnectionStage(object):
+    pass
 
-    def callback(op, error):
-        assert threading.current_thread().name == "callback"
-        callback_called.set()
-
-    op = pipeline_ops_base.ConnectOperation(callback=callback)
-    stage.run_op(op)
-    callback_called.wait()
-
-
-@pytest.mark.it("Runs operation in pipeline thread")
-def _test_pipeline_root_runs_operation_in_pipeline_thread(
-    self, mocker, stage, op, fake_non_pipeline_thread
-):
-    # the stage fixture comes from the TestPipelineRootStagePipelineThreading object that
-    # this test method gets added to, so it's a PipelineRootStage object
-    assert threading.current_thread().name != "pipeline"
-
-    def mock_execute_op(self, op):
-        print("mock_execute_op called")
-        assert threading.current_thread().name == "pipeline"
-        op.callback(op)
-
-    mock_execute_op = mocker.MagicMock(mock_execute_op)
-    stage._execute_op = mock_execute_op
-
-    stage.run_op(op)
-    assert mock_execute_op.call_count == 1
-
-
-@pytest.mark.it("Calls on_connected_handler in callback thread")
-def _test_pipeline_root_runs_on_connected_in_callback_thread(self, stage, mocker):
-    stage.pipeline_root = stage
-    callback_called = threading.Event()
-
-    def callback(*arg, **argv):
-        assert threading.current_thread().name == "callback"
-        callback_called.set()
-
-    stage.on_connected_handler = callback
-
-    stage.on_connected()
-    callback_called.wait()
-
-
-@pytest.mark.it("Calls on_disconnected_handler in callback thread")
-def _test_pipeline_root_runs_on_disconnected_in_callback_thread(self, stage, mocker):
-    stage.pipeline_root = stage
-    callback_called = threading.Event()
-
-    def callback(*arg, **argv):
-        assert threading.current_thread().name == "callback"
-        callback_called.set()
-
-    stage.on_disconnected_handler = callback
-
-    stage.on_disconnected()
-    callback_called.wait()
-
-
-@pytest.mark.it("Calls on_event_received_handler in callback thread")
-def _test_pipeline_root_runs_on_event_received_in_callback_thread(self, stage, mocker, event):
-    stage.pipeline_root = stage
-    callback_called = threading.Event()
-
-    def callback(*arg, **argv):
-        assert threading.current_thread().name == "callback"
-        callback_called.set()
-
-    stage.on_pipeline_event_handler = callback
-
-    stage.handle_pipeline_event(event)
-    callback_called.wait()
-
-
-TestPipelineRootStagePipelineThreading.test_runs_callback_in_callback_thread = (
-    _test_pipeline_root_runs_callback_in_callback_thread
-)
-TestPipelineRootStagePipelineThreading.test_runs_operation_in_pipeline_thread = (
-    _test_pipeline_root_runs_operation_in_pipeline_thread
-)
-TestPipelineRootStagePipelineThreading.test_pipeline_root_runs_on_connected_in_callback_thread = (
-    _test_pipeline_root_runs_on_connected_in_callback_thread
-)
-TestPipelineRootStagePipelineThreading.test_pipeline_root_runs_on_disconnected_in_callback_thread = (
-    _test_pipeline_root_runs_on_disconnected_in_callback_thread
-)
-TestPipelineRootStagePipelineThreading.test_pipeline_root_runs_on_event_received_in_callback_thread = (
-    _test_pipeline_root_runs_on_event_received_in_callback_thread
-)
 
 pipeline_stage_test.add_base_pipeline_stage_tests(
+    test_cls=TestEnsureConnectionStage,
     cls=pipeline_stages_base.EnsureConnectionStage,
-    module=this_module,
     all_ops=all_common_ops,
     handled_ops=[
         pipeline_ops_mqtt.MQTTPublishOperation,
@@ -282,9 +263,14 @@ class TestEnsureConnectionStageRunOp(object):
         assert_callback_failed(op=op, error=arbitrary_exception)
 
 
+@pytest.mark.describe("SerializeConnectOpStage object")
+class TestSerializeConnectOpStage(object):
+    pass
+
+
 pipeline_stage_test.add_base_pipeline_stage_tests(
+    test_cls=TestSerializeConnectOpStage,
     cls=pipeline_stages_base.SerializeConnectOpsStage,
-    module=this_module,
     all_ops=all_common_ops,
     handled_ops=[
         pipeline_ops_base.ConnectOperation,
@@ -549,9 +535,14 @@ class TestSerializeConnectOpStageRunOp(object):
         assert_callback_succeeded(op=second_connection_op)
 
 
+@pytest.mark.describe("CoordinateRequestAndResponseStage object")
+class TestCoordinateRequestAndResponseStage(object):
+    pass
+
+
 pipeline_stage_test.add_base_pipeline_stage_tests(
+    test_cls=TestCoordinateRequestAndResponseStage,
     cls=pipeline_stages_base.CoordinateRequestAndResponseStage,
-    module=this_module,
     all_ops=all_common_ops,
     handled_ops=[pipeline_ops_base.SendIotRequestAndWaitForResponseOperation],
     all_events=all_common_events,

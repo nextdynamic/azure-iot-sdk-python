@@ -6,7 +6,6 @@
 import logging
 import pytest
 import functools
-import sys
 from azure.iot.device.common.models.x509 import X509
 from azure.iot.device.provisioning.security.sk_security_client import SymmetricKeySecurityClient
 from azure.iot.device.provisioning.security.x509_security_client import X509SecurityClient
@@ -30,8 +29,6 @@ from tests.common.pipeline import pipeline_stage_test
 
 logging.basicConfig(level=logging.DEBUG)
 
-this_module = sys.modules[__name__]
-
 
 # Make it look like we're always running inside pipeline threads
 @pytest.fixture(autouse=True)
@@ -47,9 +44,14 @@ fake_ca_cert = "fake_ca_cert"
 fake_sas_token = "horcrux_token"
 
 
+@pytest.mark.describe("UseSecurityClientStage object")
+class TestUseSecurityClientStage(object):
+    pass
+
+
 pipeline_stage_test.add_base_pipeline_stage_tests(
+    test_cls=TestUseSecurityClientStage,
     cls=pipeline_stages_provisioning.UseSecurityClientStage,
-    module=this_module,
     all_ops=all_common_ops + all_provisioning_ops,
     handled_ops=[
         pipeline_ops_provisioning.SetSymmetricKeySecurityClientOperation,
@@ -110,11 +112,12 @@ def security_stage(mocker, arbitrary_exception, arbitrary_base_exception):
 
 
 @pytest.fixture
-def set_security_client(callback, params_security_ops):
+def set_security_client(mocker, params_security_ops):
     # Create new security client every time to pass into fixture to avoid re-use of old security client
     # Otherwise the exception/failure raised by one test is makes the next test fail.
     op = params_security_ops["current_op_class"](
-        security_client=params_security_ops["security_client_function_name"](), callback=callback
+        security_client=params_security_ops["security_client_function_name"](),
+        callback=mocker.MagicMock(),
     )
     return op
 

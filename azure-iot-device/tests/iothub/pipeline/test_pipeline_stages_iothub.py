@@ -7,7 +7,6 @@ import functools
 import json
 import logging
 import pytest
-import sys
 import threading
 from concurrent.futures import Future
 from azure.iot.device.exceptions import ServiceError
@@ -29,8 +28,6 @@ from azure.iot.device.common.models.x509 import X509
 from azure.iot.device.iothub.auth.x509_authentication_provider import X509AuthenticationProvider
 
 logging.basicConfig(level=logging.DEBUG)
-
-this_module = sys.modules[__name__]
 
 
 # This fixture makes it look like all test in this file  tests are running
@@ -55,9 +52,14 @@ fake_x509_cert_key_file = "where_to_find_them"
 fake_pass_phrase = "alohomora"
 
 
+@pytest.mark.describe("UseAuthProviderStage object")
+class TestUseAuthProviderStage(object):
+    pass
+
+
 pipeline_stage_test.add_base_pipeline_stage_tests(
+    test_cls=TestUseAuthProviderStage,
     cls=pipeline_stages_iothub.UseAuthProviderStage,
-    module=this_module,
     all_ops=all_common_ops + all_iothub_ops,
     handled_ops=[
         pipeline_ops_iothub.SetAuthProviderOperation,
@@ -130,15 +132,15 @@ class TestUseAuthProviderRunOpWithSetAuthProviderOperation(object):
         )
 
     @pytest.fixture
-    def set_auth_provider(self, callback, params_auth_provider_ops):
+    def set_auth_provider(self, params_auth_provider_ops, mocker):
         op = params_auth_provider_ops["current_op_class"](
             auth_provider=params_auth_provider_ops["auth_provider_function_name"](),
-            callback=callback,
+            callback=mocker.MagicMock(),
         )
         return op
 
     @pytest.fixture
-    def set_auth_provider_all_args(self, callback, params_auth_provider_ops):
+    def set_auth_provider_all_args(self, params_auth_provider_ops, mocker):
         auth_provider = params_auth_provider_ops["auth_provider_function_name"]()
         auth_provider.module_id = fake_module_id
 
@@ -147,7 +149,7 @@ class TestUseAuthProviderRunOpWithSetAuthProviderOperation(object):
             auth_provider.gateway_hostname = fake_gateway_hostname
             auth_provider.sas_token = fake_sas_token
         op = params_auth_provider_ops["current_op_class"](
-            auth_provider=auth_provider, callback=callback
+            auth_provider=auth_provider, callback=mocker.MagicMock()
         )
         return op
 
@@ -361,9 +363,14 @@ class TestUseAuthProviderOnSasTokenUpdated(object):
         assert e_info.value is arbitrary_base_exception
 
 
+@pytest.mark.describe("HandleTwinOperationStage object")
+class TestHandleTwinOperationStage(object):
+    pass
+
+
 pipeline_stage_test.add_base_pipeline_stage_tests(
+    test_cls=TestHandleTwinOperationStage,
     cls=pipeline_stages_iothub.HandleTwinOperationsStage,
-    module=this_module,
     all_ops=all_common_ops + all_iothub_ops,
     handled_ops=[
         pipeline_ops_iothub.GetTwinOperation,
@@ -386,8 +393,8 @@ class TestHandleTwinOperationsRunOpWithGetTwin(object):
         )
 
     @pytest.fixture
-    def op(self, stage, callback):
-        return pipeline_ops_iothub.GetTwinOperation(callback=callback)
+    def op(self, stage, mocker):
+        return pipeline_ops_iothub.GetTwinOperation(callback=mocker.MagicMock())
 
     @pytest.fixture
     def twin(self):
@@ -501,9 +508,9 @@ class TestHandleTwinOperationsRunOpWithPatchTwinReportedProperties(object):
         return json.dumps(patch)
 
     @pytest.fixture
-    def op(self, stage, callback, patch):
+    def op(self, stage, mocker, patch):
         return pipeline_ops_iothub.PatchTwinReportedPropertiesOperation(
-            patch=patch, callback=callback
+            patch=patch, callback=mocker.MagicMock()
         )
 
     @pytest.mark.it(

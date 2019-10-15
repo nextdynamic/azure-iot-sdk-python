@@ -26,10 +26,10 @@ base_event_defaults = {}
 
 
 def add_operation_test(
-    cls, module, extra_defaults={}, positional_arguments=["callback"], keyword_arguments={}
+    test_cls, cls, extra_defaults={}, positional_arguments=["callback"], keyword_arguments={}
 ):
     """
-    Add a test class to test the given PipelineOperation class.  The class that
+    Add tests to a test class to test the given PipelineOperation class.  The class that
     we're testing is passed in the cls parameter, and the different initialization
     constants are passed with the named arguments that follow.
     """
@@ -37,8 +37,8 @@ def add_operation_test(
     all_extra_defaults.update(name=cls.__name__)
 
     add_instantiation_test(
+        test_cls=test_cls,
         cls=cls,
-        module=module,
         defaults=base_operation_defaults,
         extra_defaults=all_extra_defaults,
         positional_arguments=positional_arguments,
@@ -46,9 +46,9 @@ def add_operation_test(
     )
 
 
-def add_event_test(cls, module, extra_defaults={}, positional_arguments=[], keyword_arguments={}):
+def add_event_test(test_cls, cls, extra_defaults={}, positional_arguments=[], keyword_arguments={}):
     """
-    Add a test class to test the given PipelineOperation class.  The class that
+    Add tests to a test class to test the given PipelineOperation class.  The class that
     we're testing is passed in the cls parameter, and the different initialization
     constants are passed with the named arguments that follow.
     """
@@ -56,8 +56,8 @@ def add_event_test(cls, module, extra_defaults={}, positional_arguments=[], keyw
     all_extra_defaults.update(name=cls.__name__)
 
     add_instantiation_test(
+        test_cls=test_cls,
         cls=cls,
-        module=module,
         defaults=base_event_defaults,
         extra_defaults=all_extra_defaults,
         positional_arguments=positional_arguments,
@@ -66,7 +66,7 @@ def add_event_test(cls, module, extra_defaults={}, positional_arguments=[], keyw
 
 
 def add_instantiation_test(
-    cls, module, defaults, extra_defaults={}, positional_arguments=[], keyword_arguments={}
+    test_cls, cls, defaults, extra_defaults={}, positional_arguments=[], keyword_arguments={}
 ):
     """
     internal function that takes the class and attribute details and adds a test class which
@@ -95,46 +95,43 @@ def add_instantiation_test(
     for key in keyword_arguments:
         kwargs[key] = get_next_fake_value()
 
-    # LocalTestObject is a local class which tests the object that was passed in.  pytest doesn't test
-    # against this local object, but it does test against it when we put it into the module namespace
-    # for the module that was passed in.
-    @pytest.mark.describe("{} - Instantiation".format(cls.__name__))
-    class LocalTestObject(object):
-        @pytest.mark.it(
-            "Accepts {} positional arguments that get assigned to attributes of the same name: {}".format(
-                len(positional_arguments), ", ".join(positional_arguments)
-            )
-            if len(positional_arguments)
-            else "Accepts no positional arguments"
+    @pytest.mark.it(
+        "Has a constructor that accepts {} positional arguments that get assigned to attributes of the same name: {}".format(
+            len(positional_arguments), ", ".join(positional_arguments)
         )
-        def test_positional_arguments(self):
-            instance = cls(*args)
-            for i in range(len(args)):
-                assert getattr(instance, positional_arguments[i]) == args[i]
+        if len(positional_arguments)
+        else "Accepts no positional arguments"
+    )
+    def test_positional_arguments(self):
+        instance = cls(*args)
+        for i in range(len(args)):
+            assert getattr(instance, positional_arguments[i]) == args[i]
 
-        @pytest.mark.it(
-            "Accepts the following keyword arguments that get assigned to attributes of the same name: {}".format(
-                ", ".join(kwargs.keys()) if len(kwargs) else "None"
-            )
+    test_cls.test_positional_arguments = test_positional_arguments
+
+    @pytest.mark.it(
+        "Has a constructor that accepts the following keyword arguments that get assigned to attributes of the same name: {}".format(
+            ", ".join(kwargs.keys()) if len(kwargs) else "None"
         )
-        def test_keyword_arguments(self):
-            instance = cls(**kwargs)
-            for key in kwargs:
-                assert getattr(instance, key) == kwargs[key]
+    )
+    def test_keyword_arguments(self):
+        instance = cls(**kwargs)
+        for key in kwargs:
+            assert getattr(instance, key) == kwargs[key]
 
-        @pytest.mark.it(
-            "Has the following default attributes: {}".format(
-                ", ".join(["{}={}".format(key, repr(all_defaults[key])) for key in all_defaults])
-            )
+    test_cls.test_keyword_arguments = test_keyword_arguments
+
+    @pytest.mark.it(
+        "Has the following default attributes: {}".format(
+            ", ".join(["{}={}".format(key, repr(all_defaults[key])) for key in all_defaults])
         )
-        def test_defaults(self):
-            instance = cls(*args)
-            for key in all_defaults:
-                if inspect.isclass(all_defaults[key]):
-                    assert isinstance(getattr(instance, key), all_defaults[key])
-                else:
-                    assert getattr(instance, key) == all_defaults[key]
+    )
+    def test_defaults(self):
+        instance = cls(*args)
+        for key in all_defaults:
+            if inspect.isclass(all_defaults[key]):
+                assert isinstance(getattr(instance, key), all_defaults[key])
+            else:
+                assert getattr(instance, key) == all_defaults[key]
 
-    # Adding this object to the namespace of the module that was passed in (using a name that starts with "Test")
-    # will cause pytest to pick it up.
-    setattr(module, "Test{}Instantiation".format(cls.__name__), LocalTestObject)
+    test_cls.test_defaults = test_defaults

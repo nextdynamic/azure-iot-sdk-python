@@ -3,17 +3,15 @@
 # Licensed under the MIT License. See License.txt in the project root for
 # license information.
 # --------------------------------------------------------------------------
-import sys
 import pytest
 import logging
 from azure.iot.device.common.pipeline import pipeline_ops_base
 from tests.common.pipeline import pipeline_data_object_test
 
-this_module = sys.modules[__name__]
 logging.basicConfig(level=logging.DEBUG)
 
 
-@pytest.mark.describe("PipelineOperation")
+@pytest.mark.describe("PipelineOperation object")
 class TestPipelineOperation(object):
     @pytest.mark.it("Can't be instantiated")
     def test_instantiate(self):
@@ -21,33 +19,80 @@ class TestPipelineOperation(object):
             pipeline_ops_base.PipelineOperation()
 
 
+@pytest.mark.destribe("ConnectOperation object")
+class TestConnectOperation(object):
+    pass
+
+
 pipeline_data_object_test.add_operation_test(
-    cls=pipeline_ops_base.ConnectOperation, module=this_module
+    test_cls=TestConnectOperation, cls=pipeline_ops_base.ConnectOperation
 )
+
+
+@pytest.mark.destribe("DisconnectOperation object")
+class TestDisconnectOperation(object):
+    pass
+
+
 pipeline_data_object_test.add_operation_test(
-    cls=pipeline_ops_base.DisconnectOperation, module=this_module
+    test_cls=TestDisconnectOperation, cls=pipeline_ops_base.DisconnectOperation
 )
+
+
+@pytest.mark.destribe("ReconnectOperation object")
+class TestReconnectOperation(object):
+    pass
+
+
 pipeline_data_object_test.add_operation_test(
-    cls=pipeline_ops_base.ReconnectOperation, module=this_module
+    test_cls=TestReconnectOperation, cls=pipeline_ops_base.ReconnectOperation
 )
+
+
+@pytest.mark.destribe("EnbleFeatureOperation object")
+class TestEnableFeatureOperation(object):
+    pass
+
+
 pipeline_data_object_test.add_operation_test(
+    test_cls=TestEnableFeatureOperation,
     cls=pipeline_ops_base.EnableFeatureOperation,
-    module=this_module,
     positional_arguments=["feature_name", "callback"],
 )
+
+
+@pytest.mark.destribe("DisableFeatureOperation object")
+class TestDisableFeatureOperation(object):
+    pass
+
+
 pipeline_data_object_test.add_operation_test(
+    test_cls=TestDisableFeatureOperation,
     cls=pipeline_ops_base.DisableFeatureOperation,
-    module=this_module,
     positional_arguments=["feature_name", "callback"],
 )
+
+
+@pytest.mark.destribe("UpdateSasTokenOperation object")
+class TestUpdateSasTokenOperation(object):
+    pass
+
+
 pipeline_data_object_test.add_operation_test(
+    test_cls=TestUpdateSasTokenOperation,
     cls=pipeline_ops_base.UpdateSasTokenOperation,
-    module=this_module,
     positional_arguments=["sas_token", "callback"],
 )
+
+
+@pytest.mark.destribe("SendIotRequestAndWaitForResponseOperation object")
+class TestSendIotRequestAndWaitForResponseOperation(object):
+    pass
+
+
 pipeline_data_object_test.add_operation_test(
+    test_cls=TestSendIotRequestAndWaitForResponseOperation,
     cls=pipeline_ops_base.SendIotRequestAndWaitForResponseOperation,
-    module=this_module,
     positional_arguments=[
         "request_type",
         "method",
@@ -56,9 +101,16 @@ pipeline_data_object_test.add_operation_test(
         "callback",
     ],
 )
+
+
+@pytest.mark.destribe("SendIotRequestOperation object")
+class TestSendIotRequestOperation(object):
+    pass
+
+
 pipeline_data_object_test.add_operation_test(
+    test_cls=TestSendIotRequestOperation,
     cls=pipeline_ops_base.SendIotRequestOperation,
-    module=this_module,
     positional_arguments=[
         "request_type",
         "method",

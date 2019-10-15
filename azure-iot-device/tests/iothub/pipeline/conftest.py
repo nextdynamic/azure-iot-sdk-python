@@ -5,8 +5,7 @@
 # --------------------------------------------------------------------------
 
 from tests.common.pipeline.fixtures import (
-    callback,
-    event,
+    arbitrary_event,
     fake_pipeline_thread,
     fake_non_pipeline_thread,
     unhandled_error_handler,

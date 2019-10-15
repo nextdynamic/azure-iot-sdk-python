@@ -7,7 +7,6 @@ import functools
 import logging
 import pytest
 import json
-import sys
 import six.moves.urllib as urllib
 from azure.iot.device.common.pipeline import (
     pipeline_events_base,
@@ -39,8 +38,6 @@ from azure.iot.device import constant as pkg_constant
 import uuid
 
 logging.basicConfig(level=logging.DEBUG)
-
-this_module = sys.modules[__name__]
 
 
 # This fixture makes it look like all test in this file  tests are running
@@ -131,9 +128,15 @@ ops_handled_by_this_stage = [
 
 events_handled_by_this_stage = [pipeline_events_mqtt.IncomingMQTTMessageEvent]
 
+
+@pytest.mark.describe("IoTHubMQTTConverterStage object")
+class TestIoTHubMQTTConverterStage(object):
+    pass
+
+
 pipeline_stage_test.add_base_pipeline_stage_tests(
+    test_cls=TestIoTHubMQTTConverterStage,
     cls=pipeline_stages_iothub_mqtt.IoTHubMQTTConverterStage,
-    module=this_module,
     all_ops=all_common_ops + all_iothub_ops,
     handled_ops=ops_handled_by_this_stage,
     all_events=all_common_events + all_iothub_events,
@@ -217,9 +220,9 @@ def stage(mocker, arbitrary_exception, arbitrary_base_exception):
 
 
 @pytest.fixture
-def set_connection_args(callback):
+def set_connection_args(mocker):
     return pipeline_ops_iothub.SetIoTHubConnectionArgsOperation(
-        device_id=fake_device_id, hostname=fake_hostname, callback=callback
+        device_id=fake_device_id, hostname=fake_hostname, callback=mocker.MagicMock()
     )
 
 
@@ -562,9 +565,9 @@ basic_ops = [
 @pytest.mark.describe("IoTHubMQTTConverterStage - .run_op() -- called with basic MQTT operations")
 class TestIoTHubMQTTConverterBasicOperations(object):
     @pytest.fixture
-    def op(self, params, callback):
+    def op(self, params, mocker):
         op = params["op_class"](**params["op_init_kwargs"])
-        op.callback = callback
+        op.callback = mocker.MagicMock()
         return op
 
     @pytest.mark.it("Runs an operation on the next stage")
@@ -954,9 +957,9 @@ publish_ops = [
 @pytest.mark.describe("IoTHubMQTTConverterStage - .run_op() -- called with publish operations")
 class TestIoTHubMQTTConverterForPublishOps(object):
     @pytest.fixture
-    def op(self, params, callback):
+    def op(self, params, mocker):
         op = params["op_class"](**params["op_init_kwargs"])
-        op.callback = callback
+        op.callback = mocker.MagicMock()
         return op
 
     @pytest.mark.it("Uses the correct topic and encodes message properties string when publishing")
@@ -1046,10 +1049,11 @@ class TestIoTHubMQTTConverterWithEnableFeature(object):
         ids=[x["op_class"].__name__ for x in sub_unsub_operations],
     )
     def test_fails_on_invalid_feature_name(
-        self, mocker, stage, stages_configured_for_both, op_parameters, callback
+        self, mocker, stage, stages_configured_for_both, op_parameters
     ):
-        op = op_parameters["op_class"](feature_name=invalid_feature_name, callback=callback)
-        callback.reset_mock()
+        op = op_parameters["op_class"](
+            feature_name=invalid_feature_name, callback=mocker.MagicMock()
+        )
         stage.run_op(op)
         assert_callback_failed(op=op, error=KeyError)
 
@@ -1165,7 +1169,7 @@ class TestIotHubMQTTConverterWithSendIotRequest(object):
         fake_resource_location,
         fake_request_body,
         fake_request_id,
-        callback,
+        mocker,
     ):
         return pipeline_ops_base.SendIotRequestOperation(
             request_type=fake_request_type,
@@ -1173,7 +1177,7 @@ class TestIotHubMQTTConverterWithSendIotRequest(object):
             resource_location=fake_resource_location,
             request_body=fake_request_body,
             request_id=fake_request_id,
-            callback=callback,
+            callback=mocker.MagicMock(),
         )
 
     @pytest.mark.it("calls the op callback with an OperationError if request_type is not 'twin'")

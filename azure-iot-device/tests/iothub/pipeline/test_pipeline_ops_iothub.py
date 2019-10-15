@@ -3,27 +3,46 @@
 # Licensed under the MIT License. See License.txt in the project root for
 # license information.
 # --------------------------------------------------------------------------
-import sys
 import logging
+import pytest
 from azure.iot.device.iothub.pipeline import pipeline_ops_iothub
 from tests.common.pipeline import pipeline_data_object_test
 
 logging.basicConfig(level=logging.DEBUG)
-this_module = sys.modules[__name__]
+
+
+@pytest.mark.describe("SetAuthProviderOperation object")
+class TestSetAuthProviderOperation(object):
+    pass
+
 
 pipeline_data_object_test.add_operation_test(
+    test_cls=TestSetAuthProviderOperation,
     cls=pipeline_ops_iothub.SetAuthProviderOperation,
-    module=this_module,
     positional_arguments=["auth_provider", "callback"],
 )
+
+
+@pytest.mark.describe("SetX509AuthProviderOperation object")
+class TestFSetX509AuthProviderOperationoo(object):
+    pass
+
+
 pipeline_data_object_test.add_operation_test(
+    test_cls=TestFSetX509AuthProviderOperationoo,
     cls=pipeline_ops_iothub.SetX509AuthProviderOperation,
-    module=this_module,
     positional_arguments=["auth_provider", "callback"],
 )
+
+
+@pytest.mark.describe("SetIotHubConnectionArgs object")
+class TestSetIotHubConnectionArgs(object):
+    pass
+
+
 pipeline_data_object_test.add_operation_test(
+    test_cls=TestSetIotHubConnectionArgs,
     cls=pipeline_ops_iothub.SetIoTHubConnectionArgsOperation,
-    module=this_module,
     positional_arguments=["device_id", "hostname", "callback"],
     keyword_arguments={
         "module_id": None,
@@ -33,26 +52,61 @@ pipeline_data_object_test.add_operation_test(
         "sas_token": None,
     },
 )
+
+
+@pytest.mark.describe("SendD2CMessageOperation object")
+class TestSendD2CMessageOperation(object):
+    pass
+
+
 pipeline_data_object_test.add_operation_test(
+    test_cls=TestSendD2CMessageOperation,
     cls=pipeline_ops_iothub.SendD2CMessageOperation,
-    module=this_module,
     positional_arguments=["message", "callback"],
 )
+
+
+@pytest.mark.describe("SendOutputEventOperation object")
+class TestSendOutputEventOperation(object):
+    pass
+
+
 pipeline_data_object_test.add_operation_test(
+    test_cls=TestSendOutputEventOperation,
     cls=pipeline_ops_iothub.SendOutputEventOperation,
-    module=this_module,
     positional_arguments=["message", "callback"],
 )
+
+
+@pytest.mark.describe("SendMethodResponseOperation object")
+class TestSendMethodResponseOperation(object):
+    pass
+
+
 pipeline_data_object_test.add_operation_test(
+    test_cls=TestSendMethodResponseOperation,
     cls=pipeline_ops_iothub.SendMethodResponseOperation,
-    module=this_module,
     positional_arguments=["method_response", "callback"],
 )
+
+
+@pytest.mark.describe("GetTwinOperation object")
+class TestGetTwinOperation(object):
+    pass
+
+
 pipeline_data_object_test.add_operation_test(
-    cls=pipeline_ops_iothub.GetTwinOperation, module=this_module
+    test_cls=TestGetTwinOperation, cls=pipeline_ops_iothub.GetTwinOperation
 )
+
+
+@pytest.mark.describe("PatchTwinReportedPropertiesOperation object")
+class TestPatchTwinReportedPropertiesOperation(object):
+    pass
+
+
 pipeline_data_object_test.add_operation_test(
+    test_cls=TestPatchTwinReportedPropertiesOperation,
     cls=pipeline_ops_iothub.PatchTwinReportedPropertiesOperation,
-    module=this_module,
     positional_arguments=["patch", "callback"],
 )
