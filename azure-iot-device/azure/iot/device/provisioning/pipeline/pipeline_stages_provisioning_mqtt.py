@@ -71,12 +71,11 @@ class ProvisioningMQTTConverterStage(PipelineStage):
             # Convert Sending the request into MQTT Publish operations
             topic = mqtt_topic.get_topic_for_register(op.request_id)
 
-            # This is an easier way to get the json eventually rather than formatting strings with if else conditions
+            # This is an easier way to get the json eventually
+            # rather than formatting strings without if else conditions
             registration_payload = DeviceRegistrationPayload(
                 registration_id=op.registration_id, custom_payload=op.request_payload
             )
-            # print(registration_payload.get_json())
-
             operation_flow.delegate_to_different_op(
                 stage=self,
                 original_op=op,
@@ -156,7 +155,7 @@ class ProvisioningMQTTConverterStage(PipelineStage):
 
 
 class DeviceRegistrationPayload(object):
-    def __init__(self, registration_id, custom_payload):
+    def __init__(self, registration_id, custom_payload=None):
         # This is not a convention to name variables in python but the
         # DPS service spec needs the name to be exact for it to work
         self.registrationId = registration_id

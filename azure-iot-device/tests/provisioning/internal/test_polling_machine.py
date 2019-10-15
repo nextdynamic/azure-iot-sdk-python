@@ -35,6 +35,7 @@ fake_failure_response_topic = "$dps/registrations/res/400/?"
 fake_greater_429_response_topic = "$dps/registrations/res/430/?"
 fake_assigning_status = "assigning"
 fake_assigned_status = "assigned"
+fake_payload = "Petrificus Totalus"
 
 
 class SomeRequestResponseProvider(RequestResponseProvider):
@@ -76,6 +77,32 @@ class TestRegister(object):
             == mock_polling_machine._on_subscribe_completed
         )
 
+    @pytest.mark.it("Sets the payload when register is called with an user supplied payload")
+    def test_register_with_payload_calls_send_request_with_payload_on_request_response_provider(
+        self, mocker, mock_polling_machine
+    ):
+        mock_polling_machine.register(payload=fake_payload)
+
+        mock_init_uuid = mocker.patch(
+            "azure.iot.device.provisioning.internal.polling_machine.uuid.uuid4"
+        )
+        mock_init_uuid.return_value = fake_request_id
+        mock_init_query_timer = mocker.patch(
+            "azure.iot.device.provisioning.internal.polling_machine.Timer"
+        )
+        mock_query_timer = mock_init_query_timer.return_value
+        mocker.patch.object(mock_query_timer, "start")
+
+        mock_polling_machine.state = "initializing"
+        mock_request_response_provider = mock_polling_machine._request_response_provider
+        spy_method = mocker.spy(mock_request_response_provider, "send_request")
+
+        mock_polling_machine._on_subscribe_completed()
+
+        assert spy_method.call_count == 1
+        assert spy_method.call_args_list[0][1]["request_id"] == fake_request_id
+        assert spy_method.call_args_list[0][1]["request_payload"] == fake_payload
+
     @pytest.mark.it("Completes subscription and calls send request on RequestResponseProvider")
     def test_on_subscribe_completed_calls_send_register_request_on_request_response_provider(
         self, mock_polling_machine, mocker
@@ -92,19 +119,13 @@ class TestRegister(object):
 
         mock_polling_machine.state = "initializing"
         mock_request_response_provider = mock_polling_machine._request_response_provider
-        mocker.patch.object(mock_request_response_provider, "send_request")
+        spy_method = mocker.spy(mock_request_response_provider, "send_request")
 
         mock_polling_machine._on_subscribe_completed()
 
-        assert mock_request_response_provider.send_request.call_count == 1
-        assert (
-            mock_request_response_provider.send_request.call_args_list[0][1]["request_id"]
-            == fake_request_id
-        )
-        assert (
-            mock_request_response_provider.send_request.call_args_list[0][1]["request_payload"]
-            is None
-        )
+        assert spy_method.call_count == 1
+        assert spy_method.call_args_list[0][1]["request_id"] == fake_request_id
+        assert spy_method.call_args_list[0][1]["request_payload"] is None
 
 
 @pytest.mark.describe("PollingMachine - Register Response")

@@ -105,6 +105,7 @@ class SendRegistrationRequestOperation(PipelineOperation):
 
         :param request_id : The id of the request being sent
         :param request_payload: The request that we are sending to the service
+        :param registration_id: The registration ID is used to uniquely identify a device in the Device Provisioning Service.
         :param Function callback: The function that gets called when this operation is complete or has failed.
          The callback function must accept A PipelineOperation object which indicates the specific operation which
          has completed or failed.
