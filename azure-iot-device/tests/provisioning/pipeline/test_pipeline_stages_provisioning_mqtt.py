@@ -295,34 +295,34 @@ publish_ops = [
             reg_id=fake_registration_id, json_payload=json.dumps(None)
         ),
     },
-    # {
-    #     "name": "send register request with payload",
-    #     "op_class": pipeline_ops_provisioning.SendRegistrationRequestOperation,
-    #     "op_init_kwargs": {
-    #         "request_id": fake_request_id,
-    #         "request_payload": fake_mqtt_payload,
-    #         "registration_id": fake_registration_id,
-    #     },
-    #     "topic": "$dps/registrations/PUT/iotdps-register/?$rid={request_id}".format(
-    #         request_id=fake_request_id
-    #     ),
-    #     "publish_payload": '{{"registrationId": "{reg_id}", "payload": {json_payload}}}'.format(
-    #         reg_id=fake_registration_id, json_payload=json.dumps(fake_mqtt_payload)
-    #     ),
-    # },
-    # {
-    #     "name": "send query request",
-    #     "op_class": pipeline_ops_provisioning.SendQueryRequestOperation,
-    #     "op_init_kwargs": {
-    #         "request_id": fake_request_id,
-    #         "operation_id": fake_operation_id,
-    #         "request_payload": fake_mqtt_payload,
-    #     },
-    #     "topic": "$dps/registrations/GET/iotdps-get-operationstatus/?$rid={request_id}&operationId={operation_id}".format(
-    #         request_id=fake_request_id, operation_id=fake_operation_id
-    #     ),
-    #     "publish_payload": fake_mqtt_payload,
-    # },
+    {
+        "name": "send register request with payload",
+        "op_class": pipeline_ops_provisioning.SendRegistrationRequestOperation,
+        "op_init_kwargs": {
+            "request_id": fake_request_id,
+            "request_payload": fake_mqtt_payload,
+            "registration_id": fake_registration_id,
+        },
+        "topic": "$dps/registrations/PUT/iotdps-register/?$rid={request_id}".format(
+            request_id=fake_request_id
+        ),
+        "publish_payload": '{{"registrationId": "{reg_id}", "payload": {json_payload}}}'.format(
+            reg_id=fake_registration_id, json_payload=json.dumps(fake_mqtt_payload)
+        ),
+    },
+    {
+        "name": "send query request",
+        "op_class": pipeline_ops_provisioning.SendQueryRequestOperation,
+        "op_init_kwargs": {
+            "request_id": fake_request_id,
+            "operation_id": fake_operation_id,
+            "request_payload": fake_mqtt_payload,
+        },
+        "topic": "$dps/registrations/GET/iotdps-get-operationstatus/?$rid={request_id}&operationId={operation_id}".format(
+            request_id=fake_request_id, operation_id=fake_operation_id
+        ),
+        "publish_payload": fake_mqtt_payload,
+    },
 ]
 
 
