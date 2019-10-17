@@ -742,7 +742,10 @@ pipeline_stage_test.add_base_pipeline_stage_tests(
     cls=pipeline_stages_base.TimeoutStage,
     module=this_module,
     all_ops=all_common_ops,
-    handled_ops=[],
+    handled_ops=[
+        pipeline_ops_mqtt.MQTTSubscribeOperation,
+        pipeline_ops_mqtt.MQTTUnsubscribeOperation,
+    ],
     all_events=all_common_events,
     handled_events=[],
     extra_initializer_defaults={
@@ -755,6 +758,24 @@ pipeline_stage_test.add_base_pipeline_stage_tests(
     },
     methods_that_enter_pipeline_thread=["_on_timer_expiration"],
 )
+
+@pytest.mark.describe("TimeoutStage - run_op()")
+class testTimeoutStageRunOp(object):
+    @pytest.mark.it("Does not set a timer for ops that don't need a timer set")
+    @pytest.mark.it("Set a timer for ops that need a timer set")
+    @pytest.mark.it("Sets a timer based on the timeout interval")
+    @pytest.mark.it("Sets a timer based on the op that times out the soonest when multiple ops are in progress")
+    @pytest.mark.it("Clears the timer when the op completes successfully")
+    @pytest.mark.it("Clears the timer when the op completes with failure")
+    @pytest.mark.it("Clears the timer when the op times out")
+    @pytest.mark.it("Sets a new timer when one op completes successfully and other ops are still in progress")
+    @pytest.mark.it("Sets a new timer when one op completes with failure and other ops are still in progress")
+    @pytest.mark.it("Sets a new timer when one op times out and other ops are still in progress")
+    @pytest.mark.it("Calls the original callback with no error when the op completes with no error")
+    @pytest.mark.it("Calls the original callback with error when the op completes with error")
+    @pytest.mark.it("Calls the original callback with a TimeoutError when the op times out")
+
+
 
 pipeline_stage_test.add_base_pipeline_stage_tests(
     cls=pipeline_stages_base.RetryStage,
@@ -771,3 +792,23 @@ pipeline_stage_test.add_base_pipeline_stage_tests(
         "waiting_to_retry": [],
     },
 )
+
+@pytest.mark.describe("RetryStage - run_op()")
+class testTimeoutStageRunOp(object):
+    @pytest.mark.it("Calls the op callback with the correct error when an op that doesn't need retry fail with an arbitrary error")
+    @pytest.mark.it("Calls the op callback with the correct error when an op that doesn't need retry fail with an error that could instigate retry")
+    @pytest.mark.it("Calls the op callback with the correct error when an op that need retry fail with an arbitrary error")
+
+    @pytest.mark.it("Does not set a retry timer when an op that doesn't need retry fail with an arbitrary error")
+    @pytest.mark.it("Does not set a retry timer when an op that doesn't need retry fail with an error that could instigate retry")
+    @pytest.mark.it("Does not set a retry timer when an op that need retry fail with an arbitrary error")
+
+    @pytest.mark.it("Sets a retry timer when an op that need retry fail with an error that could instigate retry")
+    @pytest.mark.it("Does not call the op callback when an op that need retry fail with an error that could instigate retry")
+    @pytest.mark.it("Re-submits an op that needs retry after the retry interval elapses")
+    @pytest.mark.it("Clears the complete attribute on the op when re-submitting")
+    @pytest.mark.it("Clears the retry timer attribute when re-submitting an op")
+    @pytest.mark.it("Re-submits an op multiple times if it needs multiple retries in a row")
+    @pytest.mark.it("Calls the original callback with success when the retried op succeeds")
+    @pytest.mark.it("Calls the original callback with error when the retried op compltes with error")
+
