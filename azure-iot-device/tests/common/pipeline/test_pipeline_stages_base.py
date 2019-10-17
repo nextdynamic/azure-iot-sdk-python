@@ -736,3 +736,38 @@ class TestCoordinateRequestAndResponseSendIotRequestHandleEvent(object):
         stage.next._send_event_up(iot_response)
         assert op.callback.call_count == 0
         assert unhandled_error_handler.call_count == 0
+
+
+pipeline_stage_test.add_base_pipeline_stage_tests(
+    cls=pipeline_stages_base.TimeoutStage,
+    module=this_module,
+    all_ops=all_common_ops,
+    handled_ops=[],
+    all_events=all_common_events,
+    handled_events=[],
+    extra_initializer_defaults={
+        "timeout_intervals": {
+            pipeline_ops_mqtt.MQTTSubscribeOperation: 10,
+            pipeline_ops_mqtt.MQTTUnsubscribeOperation: 10,
+        },
+        "timer": None,
+        "in_progress": [],
+    },
+    methods_that_enter_pipeline_thread=["_on_timer_expiration"],
+)
+
+pipeline_stage_test.add_base_pipeline_stage_tests(
+    cls=pipeline_stages_base.RetryStage,
+    module=this_module,
+    all_ops=all_common_ops,
+    handled_ops=[],
+    all_events=all_common_events,
+    handled_events=[],
+    extra_initializer_defaults={
+        "retry_intervals": {
+            pipeline_ops_mqtt.MQTTSubscribeOperation: 20,
+            pipeline_ops_mqtt.MQTTUnsubscribeOperation: 20,
+        },
+        "waiting_to_retry": [],
+    },
+)

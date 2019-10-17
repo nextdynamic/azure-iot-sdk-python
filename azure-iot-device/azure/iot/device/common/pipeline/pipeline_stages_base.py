@@ -551,7 +551,7 @@ class TimeoutStage(PipelineStage):
                     self.name, op.name, len(self.in_progress)
                 )
             )
-            self._ensure_timer()
+            self._reset_or_remove_timer()
             self._send_op_down_and_intercept_return(
                 op=op, intercepted_return=self._on_intercepted_return
             )
@@ -562,7 +562,7 @@ class TimeoutStage(PipelineStage):
     def _on_intercepted_return(self, op, error):
         if op in self.in_progress:
             self.in_progress.remove(op)
-            self.__reset_or_remove_timer()
+            self._reset_or_remove_timer()
             logger.info(
                 "{}({}): Op completed.  in progress = {}".format(
                     self.name, op.name, len(self.in_progress)
@@ -657,5 +657,6 @@ class RetryStage(PipelineStage):
             op.retry_timer.start()
 
         else:
-            del op.retry_timer
+            if getattr(op, "retry_timer", None):
+                del op.retry_timer
             self._send_completed_op_up(op, error)
