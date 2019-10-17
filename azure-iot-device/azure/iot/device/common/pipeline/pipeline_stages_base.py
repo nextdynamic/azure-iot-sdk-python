@@ -17,7 +17,7 @@ from . import pipeline_events_base
 from . import pipeline_ops_base, pipeline_ops_mqtt
 from .pipeline_flow import PipelineFlow
 from . import pipeline_thread
-from azure.iot.device.common import handle_exceptions
+from azure.iot.device.common import handle_exceptions, transport_exceptions
 from azure.iot.device.common.callable_weak_method import CallableWeakMethod
 
 logger = logging.getLogger(__name__)
@@ -562,18 +562,18 @@ class TimeoutStage(PipelineStage):
     def _on_intercepted_return(self, op, error):
         if op in self.in_progress:
             self.in_progress.remove(op)
-            if len(self.in_progress) == 0:
-                self.timer = None
-        logger.info(
-            "{}({}): Op completed.  in progress = {}".format(
-                self.name, op.name, len(self.in_progress)
+            self.__reset_or_remove_timer()
+            logger.info(
+                "{}({}): Op completed.  in progress = {}".format(
+                    self.name, op.name, len(self.in_progress)
+                )
             )
-        )
         self._send_completed_op_up(op, error)
 
     @pipeline_thread.runs_on_pipeline_thread
-    def _ensure_timer(self):
-        if len(self.in_progress) and not self.timer:
+    def _reset_or_remove_timer(self):
+        self.timer = None
+        if len(self.in_progress):
             current_time = time.time()
             new_interval = sys.maxsize
             for op in self.in_progress:
@@ -592,10 +592,13 @@ class TimeoutStage(PipelineStage):
             if current_time >= op.expire_time:
                 logger.info("{}({}): returning timeout error".format(self.name, op.name))
                 self.in_progress.remove(op)
-                # BKTODO: better error
-                self._complete_op(op, Exception("BKTimeout"))
-        self.timer = None
-        self._ensure_timer()
+                self._complete_op(
+                    op,
+                    transport_exceptions.PipelineTimeoutError(
+                        "operation timed out before protocol client could respond"
+                    ),
+                )
+        self._reset_or_remove_timer()
 
 
 class RetryStage(PipelineStage):
@@ -621,8 +624,7 @@ class RetryStage(PipelineStage):
     def _should_retry(self, op, error):
         if error:
             if self._should_watch_for_retry(op):
-                # BKTODO: better error
-                if str(error) == "BKTimeout":
+                if error.__class__ == transport_exceptions.PipelineTimeoutError:
                     return True
         return False
 
@@ -655,4 +657,5 @@ class RetryStage(PipelineStage):
             op.retry_timer.start()
 
         else:
+            del op.retry_timer
             self._send_completed_op_up(op, error)
