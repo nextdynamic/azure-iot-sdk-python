@@ -16,11 +16,11 @@ from azure.iot.device.common.pipeline import (
     pipeline_events_base,
 )
 from tests.common.pipeline.helpers import (
-    make_mock_stage,
     assert_callback_failed,
     assert_callback_succeeded,
     all_common_ops,
     all_common_events,
+    StageTestBase,
 )
 from tests.common.pipeline import pipeline_stage_test
 
@@ -58,6 +58,7 @@ pipeline_stage_test.add_base_pipeline_stage_tests(
         "on_disconnected_handler": None,
         "connected": False,
     },
+    positional_arguments=["pipeline_configuration"],
 )
 
 
@@ -79,7 +80,7 @@ def _test_pipeline_root_runs_callback_in_callback_thread(self, stage, mocker):
 
 @pytest.mark.it("Runs operation in pipeline thread")
 def _test_pipeline_root_runs_operation_in_pipeline_thread(
-    self, mocker, stage, op, fake_non_pipeline_thread
+    self, mocker, stage, arbitrary_op, fake_non_pipeline_thread
 ):
     # the stage fixture comes from the TestPipelineRootStagePipelineThreading object that
     # this test method gets added to, so it's a PipelineRootStage object
@@ -93,7 +94,7 @@ def _test_pipeline_root_runs_operation_in_pipeline_thread(
     mock_execute_op = mocker.MagicMock(mock_execute_op)
     stage._execute_op = mock_execute_op
 
-    stage.run_op(op)
+    stage.run_op(arbitrary_op)
     assert mock_execute_op.call_count == 1
 
 
@@ -128,7 +129,9 @@ def _test_pipeline_root_runs_on_disconnected_in_callback_thread(self, stage, moc
 
 
 @pytest.mark.it("Calls on_event_received_handler in callback thread")
-def _test_pipeline_root_runs_on_event_received_in_callback_thread(self, stage, mocker, event):
+def _test_pipeline_root_runs_on_event_received_in_callback_thread(
+    self, stage, mocker, arbitrary_event
+):
     stage.pipeline_root = stage
     callback_called = threading.Event()
 
@@ -138,7 +141,7 @@ def _test_pipeline_root_runs_on_event_received_in_callback_thread(self, stage, m
 
     stage.on_pipeline_event_handler = callback
 
-    stage.handle_pipeline_event(event)
+    stage.handle_pipeline_event(arbitrary_event)
     callback_called.wait()
 
 
@@ -197,7 +200,7 @@ ops_that_cause_connection = [
 @pytest.mark.describe(
     "EnsureConnectionStage - .run_op() -- called with operation that causes a connection to be established"
 )
-class TestEnsureConnectionStageRunOp(object):
+class TestEnsureConnectionStageRunOp(StageTestBase):
     @pytest.fixture
     def op(self, mocker, params):
         op = params["op_class"](**params["op_init_kwargs"])
@@ -205,15 +208,8 @@ class TestEnsureConnectionStageRunOp(object):
         return op
 
     @pytest.fixture
-    def stage(self, mocker, arbitrary_exception, arbitrary_base_exception):
-        stage = make_mock_stage(
-            mocker=mocker,
-            stage_to_make=pipeline_stages_base.EnsureConnectionStage,
-            exc_to_raise=arbitrary_exception,
-            base_exc_to_raise=arbitrary_base_exception,
-        )
-        stage.next.run_op = mocker.MagicMock()
-        return stage
+    def stage(self):
+        return pipeline_stages_base.EnsureConnectionStage()
 
     @pytest.mark.it("Passes the operation down the pipline when the transport is already connected")
     def test_operation_alrady_connected(self, params, op, stage):
@@ -310,17 +306,10 @@ class FakeOperation(pipeline_ops_base.PipelineOperation):
 @pytest.mark.describe(
     "SerializeConnectOpsStage - .run_op() -- called with an operation that connects, disconnects, or reconnects"
 )
-class TestSerializeConnectOpStageRunOp(object):
+class TestSerializeConnectOpStageRunOp(StageTestBase):
     @pytest.fixture
-    def stage(self, mocker, arbitrary_exception, arbitrary_base_exception):
-        stage = make_mock_stage(
-            mocker=mocker,
-            stage_to_make=pipeline_stages_base.SerializeConnectOpsStage,
-            exc_to_raise=arbitrary_exception,
-            base_exc_to_raise=arbitrary_base_exception,
-        )
-        stage.next.run_op = mocker.MagicMock()
-        return stage
+    def stage(self):
+        return pipeline_stages_base.SerializeConnectOpsStage()
 
     @pytest.fixture
     def connection_op(self, mocker, params):
@@ -582,19 +571,14 @@ def make_fake_request_and_response(mocker):
 @pytest.mark.describe(
     "CoordinateRequestAndResponse - .run_op() -- called with SendIotRequestAndWaitForResponseOperation"
 )
-class TestCoordinateRequestAndResponseSendIotRequestRunOp(object):
+class TestCoordinateRequestAndResponseSendIotRequestRunOp(StageTestBase):
     @pytest.fixture
     def op(self, mocker):
         return make_fake_request_and_response(mocker)
 
     @pytest.fixture
-    def stage(self, mocker, arbitrary_exception, arbitrary_base_exception):
-        return make_mock_stage(
-            mocker=mocker,
-            stage_to_make=pipeline_stages_base.CoordinateRequestAndResponseStage,
-            exc_to_raise=arbitrary_exception,
-            base_exc_to_raise=arbitrary_base_exception,
-        )
+    def stage(self):
+        return pipeline_stages_base.CoordinateRequestAndResponseStage()
 
     @pytest.mark.it(
         "Sends an SendIotRequestOperation op to the next stage with the same parameters and a newly allocated request_id"
@@ -651,19 +635,14 @@ class TestCoordinateRequestAndResponseSendIotRequestRunOp(object):
 @pytest.mark.describe(
     "CoordinateRequestAndResponseStage - .handle_pipeline_event() -- called with IotResponseEvent"
 )
-class TestCoordinateRequestAndResponseSendIotRequestHandleEvent(object):
+class TestCoordinateRequestAndResponseSendIotRequestHandleEvent(StageTestBase):
     @pytest.fixture
     def op(self, mocker):
         return make_fake_request_and_response(mocker)
 
     @pytest.fixture
-    def stage(self, mocker, arbitrary_exception, arbitrary_base_exception):
-        return make_mock_stage(
-            mocker=mocker,
-            stage_to_make=pipeline_stages_base.CoordinateRequestAndResponseStage,
-            exc_to_raise=arbitrary_exception,
-            base_exc_to_raise=arbitrary_base_exception,
-        )
+    def stage(self):
+        return pipeline_stages_base.CoordinateRequestAndResponseStage()
 
     @pytest.fixture
     def iot_request(self, stage, op):

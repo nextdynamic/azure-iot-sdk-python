@@ -21,7 +21,7 @@ from tests.common.pipeline.helpers import (
     all_common_ops,
     all_common_events,
     all_except,
-    make_mock_stage,
+    StageTestBase,
 )
 from tests.iothub.pipeline.helpers import all_iothub_ops, all_iothub_events
 from tests.common.pipeline import pipeline_stage_test
@@ -119,26 +119,21 @@ different_auth_provider_ops = [
     ids=[x["current_op_class"].__name__ for x in different_auth_provider_ops],
 )
 @pytest.mark.describe("UseAuthProvider - .run_op() -- called with SetAuthProviderOperation")
-class TestUseAuthProviderRunOpWithSetAuthProviderOperation(object):
+class TestUseAuthProviderRunOpWithSetAuthProviderOperation(StageTestBase):
     @pytest.fixture
-    def stage(self, mocker, arbitrary_exception, arbitrary_base_exception):
-        return make_mock_stage(
-            mocker=mocker,
-            stage_to_make=pipeline_stages_iothub.UseAuthProviderStage,
-            exc_to_raise=arbitrary_exception,
-            base_exc_to_raise=arbitrary_base_exception,
-        )
+    def stage(self):
+        return pipeline_stages_iothub.UseAuthProviderStage()
 
     @pytest.fixture
-    def set_auth_provider(self, callback, params_auth_provider_ops):
+    def set_auth_provider(self, params_auth_provider_ops, mocker):
         op = params_auth_provider_ops["current_op_class"](
             auth_provider=params_auth_provider_ops["auth_provider_function_name"](),
-            callback=callback,
+            callback=mocker.MagicMock(),
         )
         return op
 
     @pytest.fixture
-    def set_auth_provider_all_args(self, callback, params_auth_provider_ops):
+    def set_auth_provider_all_args(self, params_auth_provider_ops, mocker):
         auth_provider = params_auth_provider_ops["auth_provider_function_name"]()
         auth_provider.module_id = fake_module_id
 
@@ -147,7 +142,7 @@ class TestUseAuthProviderRunOpWithSetAuthProviderOperation(object):
             auth_provider.gateway_hostname = fake_gateway_hostname
             auth_provider.sas_token = fake_sas_token
         op = params_auth_provider_ops["current_op_class"](
-            auth_provider=auth_provider, callback=callback
+            auth_provider=auth_provider, callback=mocker.MagicMock()
         )
         return op
 
@@ -249,7 +244,7 @@ class TestUseAuthProviderRunOpWithSetAuthProviderOperation(object):
         "Calls the callback with no error if the setting sas token or setting certificate operation succeeds"
     )
     def test_returns_success_if_set_sas_token_or_set_client_certificate_succeeds(
-        self, stage, set_auth_provider
+        self, stage, set_auth_provider, next_stage_succeeds
     ):
         stage.run_op(set_auth_provider)
         assert_callback_succeeded(op=set_auth_provider)
@@ -306,15 +301,11 @@ class TestUseAuthProviderRunOpWithSetAuthProviderOperation(object):
 
 
 @pytest.mark.describe("UseAuthProvider - .on_sas_token_updated()")
-class TestUseAuthProviderOnSasTokenUpdated(object):
+class TestUseAuthProviderOnSasTokenUpdated(StageTestBase):
     @pytest.fixture
-    def stage(self, mocker, arbitrary_exception, arbitrary_base_exception):
-        stage = make_mock_stage(
-            mocker=mocker,
-            stage_to_make=pipeline_stages_iothub.UseAuthProviderStage,
-            exc_to_raise=arbitrary_exception,
-            base_exc_to_raise=arbitrary_base_exception,
-        )
+    def stage(self, mocker):
+        stage = pipeline_stages_iothub.UseAuthProviderStage()
+
         auth_provider = mocker.MagicMock()
         auth_provider.get_current_sas_token = mocker.MagicMock(return_value=fake_sas_token)
         stage.auth_provider = auth_provider
@@ -375,19 +366,14 @@ pipeline_stage_test.add_base_pipeline_stage_tests(
 
 
 @pytest.mark.describe("HandleTwinOperationsStage - .run_op() -- called with GetTwinOperation")
-class TestHandleTwinOperationsRunOpWithGetTwin(object):
+class TestHandleTwinOperationsRunOpWithGetTwin(StageTestBase):
     @pytest.fixture
-    def stage(self, mocker, arbitrary_exception, arbitrary_base_exception):
-        return make_mock_stage(
-            mocker=mocker,
-            stage_to_make=pipeline_stages_iothub.HandleTwinOperationsStage,
-            exc_to_raise=arbitrary_exception,
-            base_exc_to_raise=arbitrary_base_exception,
-        )
+    def stage(self):
+        return pipeline_stages_iothub.HandleTwinOperationsStage()
 
     @pytest.fixture
-    def op(self, stage, callback):
-        return pipeline_ops_iothub.GetTwinOperation(callback=callback)
+    def op(self, stage, mocker):
+        return pipeline_ops_iothub.GetTwinOperation(callback=mocker.MagicMock())
 
     @pytest.fixture
     def twin(self):
@@ -482,15 +468,10 @@ class TestHandleTwinOperationsRunOpWithGetTwin(object):
 @pytest.mark.describe(
     "HandleTwinOperationsStage - .run_op() -- called with PatchTwinReportedPropertiesOperation"
 )
-class TestHandleTwinOperationsRunOpWithPatchTwinReportedProperties(object):
+class TestHandleTwinOperationsRunOpWithPatchTwinReportedProperties(StageTestBase):
     @pytest.fixture
-    def stage(self, mocker, arbitrary_exception, arbitrary_base_exception):
-        return make_mock_stage(
-            mocker=mocker,
-            stage_to_make=pipeline_stages_iothub.HandleTwinOperationsStage,
-            exc_to_raise=arbitrary_exception,
-            base_exc_to_raise=arbitrary_base_exception,
-        )
+    def stage(self):
+        return pipeline_stages_iothub.HandleTwinOperationsStage()
 
     @pytest.fixture
     def patch(self):
@@ -501,9 +482,9 @@ class TestHandleTwinOperationsRunOpWithPatchTwinReportedProperties(object):
         return json.dumps(patch)
 
     @pytest.fixture
-    def op(self, stage, callback, patch):
+    def op(self, stage, mocker, patch):
         return pipeline_ops_iothub.PatchTwinReportedPropertiesOperation(
-            patch=patch, callback=callback
+            patch=patch, callback=mocker.MagicMock()
         )
 
     @pytest.mark.it(
