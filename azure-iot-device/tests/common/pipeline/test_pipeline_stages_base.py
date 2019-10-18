@@ -733,12 +733,7 @@ pipeline_stage_test.add_base_pipeline_stage_tests(
     handled_ops=yes_timeout_ops,
     all_events=all_common_events,
     handled_events=[],
-    extra_initializer_defaults={
-        "timeout_intervals": timeout_intervals,
-        "timer": None,
-        "in_progress": [],
-    },
-    methods_that_enter_pipeline_thread=["_on_timer_expiration"],
+    extra_initializer_defaults={"timeout_intervals": timeout_intervals},
 )
 
 
@@ -776,17 +771,11 @@ class TestTimeoutStageRunOp(StageTestBase):
         stage.run_op(yes_timeout_op)
         assert mock_timer.call_count == 1
 
-    @pytest.mark.it("Sets a timer based on the timeout interval")
+    @pytest.mark.it("Starts the timer based on the timeout interval")
     def test_uses_timeout_interval(self, stage, mock_timer, yes_timeout_op):
         stage.run_op(yes_timeout_op)
-        assert round(mock_timer.call_args[0][0]) == timeout_intervals[yes_timeout_op.__class__]
-
-    @pytest.mark.it(
-        "Sets a timer based on the op that times out the soonest when multiple ops are in progress"
-    )
-    def test_uses_soonest_timeout_interval(self, stage):
-        #  BKTODO
-        pass
+        assert mock_timer.call_args[0][0] == timeout_intervals[yes_timeout_op.__class__]
+        assert mock_timer.return_value.start.call_count == 1
 
     @pytest.mark.it("Clears the timer when the op completes successfully")
     def test_clears_timer_on_success(self, stage):

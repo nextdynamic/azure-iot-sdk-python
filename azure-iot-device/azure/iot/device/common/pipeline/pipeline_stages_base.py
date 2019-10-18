@@ -531,8 +531,6 @@ class CoordinateRequestAndResponseStage(PipelineStage):
 class TimeoutStage(PipelineStage):
     def __init__(self):
         super(TimeoutStage, self).__init__()
-        self.in_progress = []
-        self.timer = None
         self.timeout_intervals = {
             pipeline_ops_mqtt.MQTTSubscribeOperation: 10,
             pipeline_ops_mqtt.MQTTUnsubscribeOperation: 10,
@@ -545,14 +543,25 @@ class TimeoutStage(PipelineStage):
     @pipeline_thread.runs_on_pipeline_thread
     def _execute_op(self, op):
         if self._should_watch_for_timeout(op):
-            op.expire_time = time.time() + self.timeout_intervals[op.__class__]
-            self.in_progress.append(op)
-            logger.info(
-                "{}({}): Tracking op for timeout.  Sending down op - in progress = {}".format(
-                    self.name, op.name, len(self.in_progress)
-                )
+            logger.debug(
+                "{}({}): Tracking op for timeout.  Sending down op".format(self.name, op.name)
             )
-            self._reset_or_remove_timer()
+            self_weakref = weakref.ref(self)
+
+            @pipeline_thread.invoke_on_pipeline_thread_nowait
+            def on_timeout():
+                this = self_weakref()
+                logger.info("{}({}): returning timeout error".format(this.name, op.name))
+                del op.timeout_timer
+                self._complete_op(
+                    op,
+                    transport_exceptions.PipelineTimeoutError(
+                        "operation timed out before protocol client could respond"
+                    ),
+                )
+
+            op.timeout_timer = Timer(self.timeout_intervals[op.__class__], on_timeout)
+            op.timeout_timer.start()
             self._send_op_down_and_intercept_return(
                 op=op, intercepted_return=self._on_intercepted_return
             )
@@ -561,45 +570,9 @@ class TimeoutStage(PipelineStage):
 
     @pipeline_thread.runs_on_pipeline_thread
     def _on_intercepted_return(self, op, error):
-        if op in self.in_progress:
-            self.in_progress.remove(op)
-            self._reset_or_remove_timer()
-            logger.info(
-                "{}({}): Op completed.  in progress = {}".format(
-                    self.name, op.name, len(self.in_progress)
-                )
-            )
+        del op.timeout_timer
+        logger.debug("{}({}): Op completed".format(self.name, op.name))
         self._send_completed_op_up(op, error)
-
-    @pipeline_thread.runs_on_pipeline_thread
-    def _reset_or_remove_timer(self):
-        self.timer = None
-        if len(self.in_progress):
-            current_time = time.time()
-            new_interval = sys.maxsize
-            for op in self.in_progress:
-                time_left_on_this_op = op.expire_time - current_time
-                new_interval = max(0, min(new_interval, time_left_on_this_op))
-            logger.info("{}: setting timer for {} seconds".format(self.name, new_interval))
-            self.timer = Timer(new_interval, CallableWeakMethod(self, "_on_timer_expiration"))
-            self.timer.start()
-
-    @pipeline_thread.invoke_on_pipeline_thread
-    def _on_timer_expiration(self):
-        logger.info("{}: timer expired.  checking for timed out ops".format(self.name))
-        current_time = time.time()
-        listcopy = list(self.in_progress)  # list.copy not available in 2.7
-        for op in listcopy:
-            if current_time >= op.expire_time:
-                logger.info("{}({}): returning timeout error".format(self.name, op.name))
-                self.in_progress.remove(op)
-                self._complete_op(
-                    op,
-                    transport_exceptions.PipelineTimeoutError(
-                        "operation timed out before protocol client could respond"
-                    ),
-                )
-        self._reset_or_remove_timer()
 
 
 class RetryStage(PipelineStage):
