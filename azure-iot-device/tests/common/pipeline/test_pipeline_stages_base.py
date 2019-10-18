@@ -784,12 +784,25 @@ class TestTimeoutStageRunOp(StageTestBase):
         stage.run_op(yes_timeout_op)
         assert getattr(yes_timeout_op, "timeout_timer", None) is None
 
-    @pytest.mark.it("Clears the timer when the op completes with arbitrary_exception")
+    @pytest.mark.it("Clears the timer when the op raises an arbitrary exception")
     def test_clears_timer_on_arbitrary_exception(
         self, stage, mock_timer, yes_timeout_op, next_stage_raises_arbitrary_exception
     ):
         stage.run_op(yes_timeout_op)
         assert getattr(yes_timeout_op, "timeout_timer", None) is None
+
+    @pytest.mark.it("Does not clear the timer when the op raises an arbitrary base exception")
+    def test_doesnt_clear_timer_on_arbitrary_base_exception(
+        self,
+        stage,
+        mock_timer,
+        yes_timeout_op,
+        next_stage_raises_arbitrary_base_exception,
+        arbitrary_base_exception,
+    ):
+        with pytest.raises(arbitrary_base_exception.__class__):
+            stage.run_op(yes_timeout_op)
+        assert yes_timeout_op.timeout_timer == mock_timer.return_value
 
     @pytest.mark.it("Clears the timer when the op times out")
     def test_clears_timer_on_timeout(self, stage, mock_timer, yes_timeout_op):
@@ -806,8 +819,10 @@ class TestTimeoutStageRunOp(StageTestBase):
         stage.run_op(yes_timeout_op)
         assert_callback_succeeded(op=yes_timeout_op)
 
-    @pytest.mark.it("Calls the original callback with error when the op completes with error")
-    def test_calls_callback_on_error(
+    @pytest.mark.it(
+        "Calls the original callback with error when the op raises an arbitrary exception"
+    )
+    def test_calls_callback_on_arbitrary_exception(
         self,
         stage,
         mock_timer,
@@ -817,6 +832,22 @@ class TestTimeoutStageRunOp(StageTestBase):
     ):
         stage.run_op(yes_timeout_op)
         assert_callback_failed(op=yes_timeout_op, error=arbitrary_exception)
+
+    @pytest.mark.it(
+        "Does not call the original callback when the op raises an an arbitrary base exception"
+    )
+    def test_calls_callback_on_arbitrary_base_exception(
+        self,
+        stage,
+        mock_timer,
+        yes_timeout_op,
+        next_stage_raises_arbitrary_base_exception,
+        arbitrary_base_exception,
+    ):
+        callback = yes_timeout_op.callback  # capture before run_op because it changes inside run_op
+        with pytest.raises(arbitrary_base_exception.__class__):
+            stage.run_op(yes_timeout_op)
+        assert callback.call_count == 0
 
     @pytest.mark.it("Calls the original callback with a PipelineTimeoutError when the op times out")
     def test_calls_callback_on_timeout(self, stage, mock_timer, yes_timeout_op):
