@@ -761,7 +761,11 @@ pipeline_stage_test.add_base_pipeline_stage_tests(
 
 
 @pytest.mark.describe("TimeoutStage - run_op()")
-class testTimeoutStageRunOp(object):
+class TestTimeoutStageRunOp(object):
+    @pytest.fixture
+    def stage(self):
+        pass
+
     @pytest.mark.it("Does not set a timer for ops that don't need a timer set")
     def test_does_not_set_timer(self, stage):
         #  BKTODO
@@ -1015,6 +1019,25 @@ class RetryStageTestResubmitedOpCompletion(object):
         pass
 
 
+class BaseStageTests(object):
+    @pytest.fixture
+    def wrap_stage_with_fake_pipeline(stage, mocker):
+        class NextStageForTest(pipeline_stages_base.PipelineStage):
+            def _execute_op(self, op):
+                self._complete_op(op)
+
+        next = NextStageForTest()
+        root = pipeline_stages_base.PipelineRootStage().append_stage(stage).append_stage(next)
+
+        mocker.spy(stage, "_execute_op")
+        mocker.spy(stage, "run_op")
+
+        mocker.spy(next, "_execute_op")
+        mocker.spy(next, "run_op")
+
+        return root
+
+
 @pytest.mark.describe("RetryStage - run_op()")
 class TestRetryStageRunOp(
     RetryStageTestNoRetryOpCallback,
@@ -1024,4 +1047,8 @@ class TestRetryStageRunOp(
     RetryStageTestResubmitOp,
     RetryStageTestResubmitedOpCompletion,
 ):
+    @pytest.fixture
+    def stage(self):
+        pass
+
     pass
