@@ -15,6 +15,7 @@ from azure.iot.device.common.pipeline import (
     pipeline_ops_mqtt,
     pipeline_events_base,
 )
+from azure.iot.device.common import transport_exceptions
 from tests.common.pipeline.helpers import (
     assert_callback_failed,
     assert_callback_succeeded,
@@ -776,55 +777,53 @@ class TestTimeoutStageRunOp(StageTestBase):
         stage.run_op(yes_timeout_op)
         assert mock_timer.call_args[0][0] == timeout_intervals[yes_timeout_op.__class__]
         assert mock_timer.return_value.start.call_count == 1
+        assert yes_timeout_op.timeout_timer == mock_timer.return_value
 
     @pytest.mark.it("Clears the timer when the op completes successfully")
-    def test_clears_timer_on_success(self, stage):
-        #  BKTODO
-        pass
+    def test_clears_timer_on_success(self, stage, mock_timer, yes_timeout_op, next_stage_succeeds):
+        stage.run_op(yes_timeout_op)
+        assert getattr(yes_timeout_op, "timeout_timer", None) is None
 
-    @pytest.mark.it("Clears the timer when the op completes with failure")
-    def test_clears_timer_on_failure(self, stage):
-        #  BKTODO
-        pass
+    @pytest.mark.it("Clears the timer when the op completes with arbitrary_exception")
+    def test_clears_timer_on_arbitrary_exception(
+        self, stage, mock_timer, yes_timeout_op, next_stage_raises_arbitrary_exception
+    ):
+        stage.run_op(yes_timeout_op)
+        assert getattr(yes_timeout_op, "timeout_timer", None) is None
 
     @pytest.mark.it("Clears the timer when the op times out")
-    def test_clears_timer_on_timeout(self, stage):
-        #  BKTODO
-        pass
-
-    @pytest.mark.it(
-        "Sets a new timer when one op completes successfully and other ops are still in progress"
-    )
-    def test_sets_new_timer_on_success(self, stage):
-        #  BKTODO
-        pass
-
-    @pytest.mark.it(
-        "Sets a new timer when one op completes with failure and other ops are still in progress"
-    )
-    def test_sets_new_timers_on_failure(self, stage):
-        #  BKTODO
-        pass
-
-    @pytest.mark.it("Sets a new timer when one op times out and other ops are still in progress")
-    def test_sets_new_timer_on_timeout(self, stage):
-        #  BKTODO
-        pass
+    def test_clears_timer_on_timeout(self, stage, mock_timer, yes_timeout_op):
+        stage.run_op(yes_timeout_op)
+        assert yes_timeout_op.timeout_timer == mock_timer.return_value
+        timer_callback = mock_timer.call_args[0][1]
+        timer_callback()
+        assert getattr(yes_timeout_op, "timeout_timer", None) is None
 
     @pytest.mark.it("Calls the original callback with no error when the op completes with no error")
-    def test_calls_callback_on_success(self, stage):
-        #  BKTODO
-        pass
+    def test_calls_callback_on_success(
+        self, stage, mock_timer, yes_timeout_op, next_stage_succeeds
+    ):
+        stage.run_op(yes_timeout_op)
+        assert_callback_succeeded(op=yes_timeout_op)
 
     @pytest.mark.it("Calls the original callback with error when the op completes with error")
-    def test_calls_callback_on_error(self, stage):
-        #  BKTODO
-        pass
+    def test_calls_callback_on_error(
+        self,
+        stage,
+        mock_timer,
+        yes_timeout_op,
+        next_stage_raises_arbitrary_exception,
+        arbitrary_exception,
+    ):
+        stage.run_op(yes_timeout_op)
+        assert_callback_failed(op=yes_timeout_op, error=arbitrary_exception)
 
-    @pytest.mark.it("Calls the original callback with a TimeoutError when the op times out")
-    def test_calls_callback_on_timeout(self, stage):
-        #  BKTODO
-        pass
+    @pytest.mark.it("Calls the original callback with a PipelineTimeoutError when the op times out")
+    def test_calls_callback_on_timeout(self, stage, mock_timer, yes_timeout_op):
+        stage.run_op(yes_timeout_op)
+        timer_callback = mock_timer.call_args[0][1]
+        timer_callback()
+        assert_callback_failed(op=yes_timeout_op, error=transport_exceptions.PipelineTimeoutError)
 
 
 pipeline_stage_test.add_base_pipeline_stage_tests(

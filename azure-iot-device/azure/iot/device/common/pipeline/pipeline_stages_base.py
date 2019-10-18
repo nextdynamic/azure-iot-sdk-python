@@ -543,16 +543,12 @@ class TimeoutStage(PipelineStage):
     @pipeline_thread.runs_on_pipeline_thread
     def _execute_op(self, op):
         if self._should_watch_for_timeout(op):
-            logger.debug(
-                "{}({}): Tracking op for timeout.  Sending down op".format(self.name, op.name)
-            )
             self_weakref = weakref.ref(self)
 
             @pipeline_thread.invoke_on_pipeline_thread_nowait
             def on_timeout():
                 this = self_weakref()
                 logger.info("{}({}): returning timeout error".format(this.name, op.name))
-                del op.timeout_timer
                 self._complete_op(
                     op,
                     transport_exceptions.PipelineTimeoutError(
@@ -560,8 +556,11 @@ class TimeoutStage(PipelineStage):
                     ),
                 )
 
+            logger.debug("{}({}): Creating timer".format(self.name, op.name))
             op.timeout_timer = Timer(self.timeout_intervals[op.__class__], on_timeout)
             op.timeout_timer.start()
+
+            logger.debug("{}({}): Sending down".format(self.name, op.name))
             self._send_op_down_and_intercept_return(
                 op=op, intercepted_return=self._on_intercepted_return
             )
