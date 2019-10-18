@@ -21,6 +21,8 @@ from tests.common.pipeline.helpers import (
     all_common_ops,
     all_common_events,
     StageTestBase,
+    all_except,
+    make_mock_op_or_event,
 )
 from tests.common.pipeline import pipeline_stage_test
 
@@ -717,21 +719,22 @@ class TestCoordinateRequestAndResponseSendIotRequestHandleEvent(StageTestBase):
         assert unhandled_error_handler.call_count == 0
 
 
+timeout_intervals = {
+    pipeline_ops_mqtt.MQTTSubscribeOperation: 10,
+    pipeline_ops_mqtt.MQTTUnsubscribeOperation: 10,
+}
+yes_timeout_ops = list(timeout_intervals.keys())
+no_timeout_ops = all_except(all_common_ops, yes_timeout_ops)
+
 pipeline_stage_test.add_base_pipeline_stage_tests(
     cls=pipeline_stages_base.TimeoutStage,
     module=this_module,
     all_ops=all_common_ops,
-    handled_ops=[
-        pipeline_ops_mqtt.MQTTSubscribeOperation,
-        pipeline_ops_mqtt.MQTTUnsubscribeOperation,
-    ],
+    handled_ops=yes_timeout_ops,
     all_events=all_common_events,
     handled_events=[],
     extra_initializer_defaults={
-        "timeout_intervals": {
-            pipeline_ops_mqtt.MQTTSubscribeOperation: 10,
-            pipeline_ops_mqtt.MQTTUnsubscribeOperation: 10,
-        },
+        "timeout_intervals": timeout_intervals,
         "timer": None,
         "in_progress": [],
     },
@@ -740,25 +743,43 @@ pipeline_stage_test.add_base_pipeline_stage_tests(
 
 
 @pytest.mark.describe("TimeoutStage - run_op()")
-class TestTimeoutStageRunOp(object):
+class TestTimeoutStageRunOp(StageTestBase):
+    @pytest.fixture(params=yes_timeout_ops)
+    def yes_timeout_op(self, request, mocker):
+        op = make_mock_op_or_event(request.param)
+        op.callback = mocker.MagicMock()
+        return op
+
+    @pytest.fixture(params=no_timeout_ops)
+    def no_timeout_op(self, request, mocker):
+        op = make_mock_op_or_event(request.param)
+        op.callback = mocker.MagicMock()
+        return op
+
+    @pytest.fixture()
+    def mock_timer(self, mocker):
+        return mocker.patch(
+            "azure.iot.device.common.pipeline.pipeline_stages_base.Timer", autospec=True
+        )
+
     @pytest.fixture
     def stage(self):
-        pass
+        return pipeline_stages_base.TimeoutStage()
 
     @pytest.mark.it("Does not set a timer for ops that don't need a timer set")
-    def test_does_not_set_timer(self, stage):
-        #  BKTODO
-        pass
+    def test_does_not_set_timer(self, stage, mock_timer, no_timeout_op):
+        stage.run_op(no_timeout_op)
+        assert mock_timer.call_count == 0
 
     @pytest.mark.it("Set a timer for ops that need a timer set")
-    def test_sets_timer(self, stage):
-        #  BKTODO
-        pass
+    def test_sets_timer(self, stage, mock_timer, yes_timeout_op):
+        stage.run_op(yes_timeout_op)
+        assert mock_timer.call_count == 1
 
     @pytest.mark.it("Sets a timer based on the timeout interval")
-    def test_uses_timeout_interval(self, stage):
-        #  BKTODO
-        pass
+    def test_uses_timeout_interval(self, stage, mock_timer, yes_timeout_op):
+        stage.run_op(yes_timeout_op)
+        assert round(mock_timer.call_args[0][0]) == timeout_intervals[yes_timeout_op.__class__]
 
     @pytest.mark.it(
         "Sets a timer based on the op that times out the soonest when multiple ops are in progress"
@@ -998,27 +1019,9 @@ class RetryStageTestResubmitedOpCompletion(object):
         pass
 
 
-class BaseStageTests(object):
-    @pytest.fixture
-    def wrap_stage_with_fake_pipeline(stage, mocker):
-        class NextStageForTest(pipeline_stages_base.PipelineStage):
-            def _execute_op(self, op):
-                self._complete_op(op)
-
-        next = NextStageForTest()
-        root = pipeline_stages_base.PipelineRootStage().append_stage(stage).append_stage(next)
-
-        mocker.spy(stage, "_execute_op")
-        mocker.spy(stage, "run_op")
-
-        mocker.spy(next, "_execute_op")
-        mocker.spy(next, "run_op")
-
-        return root
-
-
 @pytest.mark.describe("RetryStage - run_op()")
 class TestRetryStageRunOp(
+    StageTestBase,
     RetryStageTestNoRetryOpCallback,
     RetryStageTestNoRetryOpSetTimer,
     RetryStageTestYesRetryOpCallback,
@@ -1028,6 +1031,4 @@ class TestRetryStageRunOp(
 ):
     @pytest.fixture
     def stage(self):
-        pass
-
-    pass
+        return pipeline_stages_base.RetryStage()
