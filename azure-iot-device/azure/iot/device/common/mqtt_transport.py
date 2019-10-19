@@ -178,6 +178,7 @@ class MQTTTransport(object):
         def on_disconnect(client, userdata, rc):
             this = self_weakref()
             logger.info("disconnected with result code: {}".format(rc))
+            traceback.print_stack(file=sys.stdout)
 
             cause = None
             if rc:  # i.e. if there is an error
