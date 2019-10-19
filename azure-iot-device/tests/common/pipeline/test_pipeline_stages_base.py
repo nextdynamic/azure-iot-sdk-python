@@ -1140,15 +1140,25 @@ class RetryStageTestResubmitedOpCompletion(object):
     def test_no_callback_on_retried_op_retry_error(
         self, stage, yes_retry_op, retry_error, mock_timer
     ):
-        #  BKTODO
-        pytest.skip()
+        op_callback = yes_retry_op.callback
+        stage.run_op(yes_retry_op)
+        stage.next._complete_op(op=yes_retry_op, error=retry_error)
+        timer_callback = mock_timer.call_args[0][1]
+        timer_callback()
+        stage.next._complete_op(op=yes_retry_op, error=retry_error)
+        assert op_callback.call_count == 0
 
     @pytest.mark.it("Sets a new retry timer error when the retried op compltes with an retry error")
     def test_sets_timer_on_retried_op_retry_error(
         self, stage, yes_retry_op, retry_error, mock_timer
     ):
-        #  BKTODO
-        pytest.skip()
+        stage.run_op(yes_retry_op)
+        stage.next._complete_op(op=yes_retry_op, error=retry_error)
+        assert mock_timer.call_count == 1
+        timer_callback = mock_timer.call_args[0][1]
+        timer_callback()
+        stage.next._complete_op(op=yes_retry_op, error=retry_error)
+        assert mock_timer.call_count == 2
 
 
 @pytest.mark.describe("RetryStage - run_op()")
