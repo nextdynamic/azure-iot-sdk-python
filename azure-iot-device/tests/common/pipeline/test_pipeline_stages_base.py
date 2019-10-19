@@ -1107,26 +1107,41 @@ class RetryStageTestResubmitedOpCompletion(object):
     """
 
     @pytest.mark.it("Calls the original callback with success when the retried op succeeds")
-    def test_calls_callback_on_retried_op_success(self, stage):
-        #  BKTODO
-        pytest.skip()
+    def test_calls_callback_on_retried_op_success(
+        self, stage, yes_retry_op, retry_error, mock_timer
+    ):
+        op_callback = yes_retry_op.callback
+        stage.run_op(yes_retry_op)
+        stage.next._complete_op(op=yes_retry_op, error=retry_error)
+        timer_callback = mock_timer.call_args[0][1]
+        timer_callback()
+        assert op_callback.call_count == 0
+        stage.next._complete_op(op=yes_retry_op)
+        assert yes_retry_op.callback == op_callback
+        assert_callback_succeeded(op=yes_retry_op)
 
     @pytest.mark.it(
         "Calls the original callback with error when the retried op compltes with an arbitrary error"
     )
-    def test_calls_callback_on_retried_op_arbitrary_exception(self, stage):
+    def test_calls_callback_on_retried_op_arbitrary_exception(
+        self, stage, yes_retry_op, retry_error, mock_timer
+    ):
         #  BKTODO
         pytest.skip()
 
     @pytest.mark.it(
         "Does not calls the original callback with error when the retried op compltes with an retry error"
     )
-    def test_no_callback_on_retried_op_retry_error(self, stage):
+    def test_no_callback_on_retried_op_retry_error(
+        self, stage, yes_retry_op, retry_error, mock_timer
+    ):
         #  BKTODO
         pytest.skip()
 
     @pytest.mark.it("Sets a new retry timer error when the retried op compltes with an retry error")
-    def test_sets_timer_on_retried_op_retry_error(self, stage):
+    def test_sets_timer_on_retried_op_retry_error(
+        self, stage, yes_retry_op, retry_error, mock_timer
+    ):
         #  BKTODO
         pytest.skip()
 
