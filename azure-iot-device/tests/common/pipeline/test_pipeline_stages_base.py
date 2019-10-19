@@ -1068,17 +1068,27 @@ class RetryStageTestResubmitOp(object):
     """
 
     @pytest.mark.it("Retries an op that needs retry after the retry interval elapses")
-    def test_resubmits_after_retry_interval_elapses(self, stage):
-        #  BKTODO
-        pytest.skip()
+    def test_resubmits_after_retry_interval_elapses(
+        self, stage, yes_retry_op, retry_error, mock_timer
+    ):
+        stage.run_op(yes_retry_op)
+        assert stage.next.run_op.call_count == 1
+        stage.next.run_op.reset_mock()
+        stage.next._complete_op(op=yes_retry_op, error=retry_error)
+        timer_callback = mock_timer.call_args[0][1]
+        timer_callback()
+        assert stage.next.run_op.call_count == 1
+        assert stage.next.run_op.call_args[0][0] == yes_retry_op
 
     @pytest.mark.it("Clears the complete attribute on the op when retrying")
-    def test_clears_complete_attribute_before_resubmitting(self, stage):
+    def test_clears_complete_attribute_before_resubmitting(
+        self, stage, yes_retry_op, retry_error, mock_timer
+    ):
         #  BKTODO
         pytest.skip()
 
     @pytest.mark.it("Clears the retry timer attribute on the op when retrying")
-    def test_clears_retry_timer_before_retrying(self, stage):
+    def test_clears_retry_timer_before_retrying(self, stage, yes_retry_op, retry_error, mock_timer):
         #  BKTODO
         pytest.skip()
 
