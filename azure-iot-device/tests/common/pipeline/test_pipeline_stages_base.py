@@ -1002,23 +1002,28 @@ class RetryStageTestYesRetryOpCallback(object):
     """
 
     @pytest.mark.it("Calls the op callback with no error when an op that need retry succeeds")
-    def test_callback_on_yes_retry_op_success(self, stage):
-        #  BKTODO
-        pytest.skip()
+    def test_callback_on_yes_retry_op_success(self, stage, yes_retry_op, next_stage_succeeds):
+        stage.run_op(yes_retry_op)
+        assert_callback_succeeded(op=yes_retry_op)
 
     @pytest.mark.it(
         "Calls the op callback with error when an op that need retry fails with an arbitrary error"
     )
-    def test_callback_on_yes_retry_op_arbitrary_exception(self, stage):
-        #  BKTODO
-        pytest.skip()
+    def test_callback_on_yes_retry_op_arbitrary_exception(
+        self, stage, yes_retry_op, next_stage_raises_arbitrary_exception, arbitrary_exception
+    ):
+        stage.run_op(yes_retry_op)
+        assert_callback_failed(op=yes_retry_op, error=arbitrary_exception)
 
     @pytest.mark.it(
         "Does not call the op callback when an op that need retry fail with a retry error"
     )
-    def test_no_callback_on_yes_retry_op_retry_error(self, stage):
-        #  BKTODO
-        pytest.skip()
+    def test_no_callback_on_yes_retry_op_retry_error(
+        self, stage, yes_retry_op, retry_error, mock_timer
+    ):
+        stage.run_op(yes_retry_op)
+        stage.next._complete_op(op=yes_retry_op, error=retry_error)
+        assert yes_retry_op.callback.call_count == 0
 
 
 class RetryStageTestYesRetryOpSetTimer(object):
