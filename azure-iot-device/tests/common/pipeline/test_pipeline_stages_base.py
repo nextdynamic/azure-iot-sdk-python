@@ -1124,10 +1124,20 @@ class RetryStageTestResubmitedOpCompletion(object):
         "Calls the original callback with error when the retried op compltes with an arbitrary error"
     )
     def test_calls_callback_on_retried_op_arbitrary_exception(
-        self, stage, yes_retry_op, retry_error, mock_timer
+        self, stage, yes_retry_op, retry_error, mock_timer, arbitrary_exception, mocker
     ):
-        #  BKTODO
-        pytest.skip()
+
+        stage.run_op(yes_retry_op)
+        import pdb
+
+        pdb.set_trace()
+        stage.next._complete_op(op=yes_retry_op, error=retry_error)
+
+        stage.next._execute_op = mocker.MagicMock(side_effect=arbitrary_exception)
+        timer_callback = mock_timer.call_args[0][1]
+        timer_callback()
+
+        assert_callback_failed(op=yes_retry_op, error=arbitrary_exception)
 
     @pytest.mark.it(
         "Does not calls the original callback with error when the retried op compltes with an retry error"
