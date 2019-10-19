@@ -720,6 +720,11 @@ class TestCoordinateRequestAndResponseSendIotRequestHandleEvent(StageTestBase):
         assert unhandled_error_handler.call_count == 0
 
 
+"""
+A note on terms in the TimeoutStage tests:
+    No-timeout ops are ops that don't need a timeout check
+    Yes-timeout ops are ops that do need a timeout check
+"""
 timeout_intervals = {
     pipeline_ops_mqtt.MQTTSubscribeOperation: 10,
     pipeline_ops_mqtt.MQTTUnsubscribeOperation: 10,
@@ -857,22 +862,6 @@ class TestTimeoutStageRunOp(StageTestBase):
         assert_callback_failed(op=yes_timeout_op, error=transport_exceptions.PipelineTimeoutError)
 
 
-pipeline_stage_test.add_base_pipeline_stage_tests(
-    cls=pipeline_stages_base.RetryStage,
-    module=this_module,
-    all_ops=all_common_ops,
-    handled_ops=[],
-    all_events=all_common_events,
-    handled_events=[],
-    extra_initializer_defaults={
-        "retry_intervals": {
-            pipeline_ops_mqtt.MQTTSubscribeOperation: 20,
-            pipeline_ops_mqtt.MQTTUnsubscribeOperation: 20,
-        },
-        "waiting_to_retry": [],
-    },
-)
-
 """
 A note on terms in the RetryStage tests:
     No-retry ops are ops that will never be retried.
@@ -880,6 +869,23 @@ A note on terms in the RetryStage tests:
     Retry errors are errors that cause a retry for yes-retry ops
     Arbitrary errors will never cause a retry
 """
+
+retry_intervals = {
+    pipeline_ops_mqtt.MQTTSubscribeOperation: 20,
+    pipeline_ops_mqtt.MQTTUnsubscribeOperation: 20,
+}
+yes_retry_ops = list(retry_intervals.keys())
+no_retry_ops = all_except(all_common_ops, yes_retry_ops)
+
+pipeline_stage_test.add_base_pipeline_stage_tests(
+    cls=pipeline_stages_base.RetryStage,
+    module=this_module,
+    all_ops=all_common_ops,
+    handled_ops=[],
+    all_events=all_common_events,
+    handled_events=[],
+    extra_initializer_defaults={"retry_intervals": retry_intervals, "waiting_to_retry": []},
+)
 
 
 class RetryStageTestNoRetryOpCallback(object):
