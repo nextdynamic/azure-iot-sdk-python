@@ -1128,15 +1128,10 @@ class RetryStageTestResubmitedOpCompletion(object):
     ):
 
         stage.run_op(yes_retry_op)
-        import pdb
-
-        pdb.set_trace()
         stage.next._complete_op(op=yes_retry_op, error=retry_error)
-
-        stage.next._execute_op = mocker.MagicMock(side_effect=arbitrary_exception)
         timer_callback = mock_timer.call_args[0][1]
         timer_callback()
-
+        stage.next._complete_op(op=yes_retry_op, error=arbitrary_exception)
         assert_callback_failed(op=yes_retry_op, error=arbitrary_exception)
 
     @pytest.mark.it(
