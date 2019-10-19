@@ -743,6 +743,13 @@ pipeline_stage_test.add_base_pipeline_stage_tests(
 )
 
 
+@pytest.fixture()
+def mock_timer(mocker):
+    return mocker.patch(
+        "azure.iot.device.common.pipeline.pipeline_stages_base.Timer", autospec=True
+    )
+
+
 @pytest.mark.describe("TimeoutStage - run_op()")
 class TestTimeoutStageRunOp(StageTestBase):
     @pytest.fixture(params=yes_timeout_ops)
@@ -756,12 +763,6 @@ class TestTimeoutStageRunOp(StageTestBase):
         op = make_mock_op_or_event(request.param)
         op.callback = mocker.MagicMock()
         return op
-
-    @pytest.fixture()
-    def mock_timer(self, mocker):
-        return mocker.patch(
-            "azure.iot.device.common.pipeline.pipeline_stages_base.Timer", autospec=True
-        )
 
     @pytest.fixture
     def stage(self):
@@ -938,7 +939,7 @@ class RetryStageTestNoRetryOpCallback(object):
 
     @pytest.fixture(params=retry_errors)
     def retry_error(self, request):
-        return request.param
+        return request.param()
 
     @pytest.mark.it(
         "Calls the op callback with no error when an op that doesn't need retry succeeds"
@@ -962,6 +963,7 @@ class RetryStageTestNoRetryOpCallback(object):
     def test_calls_callback_on_no_retry_op_retry_error(self, stage, no_retry_op, retry_error):
         stage.run_op(no_retry_op)
         stage.next._complete_op(op=no_retry_op, error=retry_error)
+        assert_callback_failed(op=no_retry_op, error=retry_error)
 
 
 class RetryStageTestNoRetryOpSetTimer(object):
@@ -970,23 +972,28 @@ class RetryStageTestNoRetryOpSetTimer(object):
     """
 
     @pytest.mark.it("Does not set a retry timer when an op that doesn't need retry succeeds")
-    def test_no_timer_on_no_retry_op_success(self, stage):
-        #  BKTODO
-        pytest.skip()
+    def test_no_timer_on_no_retry_op_success(
+        self, stage, no_retry_op, next_stage_succeeds, mock_timer
+    ):
+        stage.run_op(no_retry_op)
+        assert mock_timer.call_count == 0
 
     @pytest.mark.it(
         "Does not set a retry timer when an op that doesn't need retry fail with an arbitrary error"
     )
-    def test_no_timer_on_no_retry_op_arbitrary_exception(self, stage):
-        #  BKTODO
-        pytest.skip()
+    def test_no_timer_on_no_retry_op_arbitrary_exception(
+        self, stage, no_retry_op, next_stage_raises_arbitrary_exception, mock_timer
+    ):
+        stage.run_op(no_retry_op)
+        assert mock_timer.call_count == 0
 
     @pytest.mark.it(
         "Does not set a retry timer when an op that doesn't need retry fail with a retry error"
     )
-    def test_no_timer_on_no_retry_op_retry_error(self, stage):
-        #  BKTODO
-        pytest.skip()
+    def test_no_timer_on_no_retry_op_retry_error(self, stage, no_retry_op, retry_error, mock_timer):
+        stage.run_op(no_retry_op)
+        stage.next._complete_op(op=no_retry_op, error=retry_error)
+        assert mock_timer.call_count == 0
 
 
 class RetryStageTestYesRetryOpCallback(object):
