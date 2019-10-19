@@ -7,6 +7,7 @@
 import paho.mqtt.client as mqtt
 import logging
 import ssl
+import sys
 import threading
 import traceback
 import weakref
