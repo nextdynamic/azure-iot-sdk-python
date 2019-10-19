@@ -611,6 +611,7 @@ class RetryStage(PipelineStage):
                 this = self_weakref()
                 logger.info("{}({}): retrying".format(this.name, op.name))
                 del op.retry_timer
+                op.completed = False
                 this.waiting_to_retry.remove(op)
                 # Don't just send it down directly.  Instead, go through _execute_op so we get
                 # retry functionality this time too
@@ -625,7 +626,6 @@ class RetryStage(PipelineStage):
 
             # if we don't keep track of this op, it might get collected.
             self.waiting_to_retry.append(op)
-            op.completed = False
             op.retry_timer = Timer(self.retry_intervals[op.__class__], do_retry)
             op.retry_timer.start()
 
