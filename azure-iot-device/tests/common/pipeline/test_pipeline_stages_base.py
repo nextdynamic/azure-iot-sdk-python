@@ -1032,26 +1032,34 @@ class RetryStageTestYesRetryOpSetTimer(object):
     """
 
     @pytest.mark.it("Does not set a retry timer when an op that need retry succeeds")
-    def test_no_timer_on_yes_retry_op_success(self, stage):
-        #  BKTODO
-        pytest.skip()
+    def test_no_timer_on_yes_retry_op_success(
+        self, stage, yes_retry_op, next_stage_succeeds, mock_timer
+    ):
+        stage.run_op(yes_retry_op)
+        assert mock_timer.call_count == 0
 
     @pytest.mark.it(
         "Does not set a retry timer when an op that need retry fail with an arbitrary error"
     )
-    def test_no_timer_on_yes_retry_op_arbitrary_exception(self, stage):
-        #  BKTODO
-        pytest.skip()
+    def test_no_timer_on_yes_retry_op_arbitrary_exception(
+        self, stage, yes_retry_op, next_stage_raises_arbitrary_exception, mock_timer
+    ):
+        stage.run_op(yes_retry_op)
+        assert mock_timer.call_count == 0
 
     @pytest.mark.it("Sets a retry timer when an op that need retry fail with retry error")
-    def test_yes_timer_on_yes_retry_op_retry_error(self, stage):
-        #  BKTODO
-        pytest.skip()
+    def test_yes_timer_on_yes_retry_op_retry_error(
+        self, stage, yes_retry_op, retry_error, mock_timer
+    ):
+        stage.run_op(yes_retry_op)
+        stage.next._complete_op(op=yes_retry_op, error=retry_error)
+        assert mock_timer.call_count == 1
 
     @pytest.mark.it("Uses the correct timout when setting a retry timer")
-    def test_uses_correct_timer_interval(self, stage):
-        #  BKTODO
-        pytest.skip()
+    def test_uses_correct_timer_interval(self, stage, yes_retry_op, retry_error, mock_timer):
+        stage.run_op(yes_retry_op)
+        stage.next._complete_op(op=yes_retry_op, error=retry_error)
+        assert mock_timer.call_args[0][0] == retry_intervals[yes_retry_op.__class__]
 
 
 class RetryStageTestResubmitOp(object):
