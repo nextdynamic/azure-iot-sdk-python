@@ -1093,8 +1093,12 @@ class RetryStageTestResubmitOp(object):
 
     @pytest.mark.it("Clears the retry timer attribute on the op when retrying")
     def test_clears_retry_timer_before_retrying(self, stage, yes_retry_op, retry_error, mock_timer):
-        #  BKTODO
-        pytest.skip()
+        stage.run_op(yes_retry_op)
+        stage.next._complete_op(op=yes_retry_op, error=retry_error)
+        assert yes_retry_op.retry_timer
+        timer_callback = mock_timer.call_args[0][1]
+        timer_callback()
+        assert getattr(yes_retry_op, "retry_timer", None) is None
 
 
 class RetryStageTestResubmitedOpCompletion(object):
